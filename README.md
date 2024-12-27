@@ -2,6 +2,7 @@
 Multi-Agent Based Scheduling Algorithm for Dialysis
 RCEMP-DIAL (Regulator, Customer, Environment, Maintainers and Producers - Dialysis)
 
+```plaintext
 project/
 ├── data/
 │   ├── raw/                # Données brutes collectées via SQL
@@ -46,3 +47,36 @@ project/
 ├── requirements.txt        # Liste des dépendances (Mesa, SQLAlchemy, pandas, etc.)
 ├── README.md               # Documentation de base du projet
 └── config.py               # Configuration globale (chemins, paramètres, etc.)
+```
+
+## Key Components
+
+### `data/`
+- **raw/**: Stocke les données brutes collectées via SQL.
+- **processed/**: Contient les données nettoyées ou transformées pour l'analyse.
+- **benchmarks.db**: La base de données SQLite ou une autre base de données prise en charge par SQLAlchemy.
+
+### `notebooks/`
+- Regroupe des notebooks Jupyter pour l'analyse, la visualisation et les expérimentations.
+
+### `src/`
+- **agents/**: Contient le code des agents pour Mesa.
+- **environments/**: Définit les environnements multi-agents.
+- **algorithms/**: Implémente les modèles d'algorithmes concurrents.
+- **database/**: Gère les schémas de base de données et les scripts de peuplement.
+- **evaluation/**: Fournit les métriques et outils de comparaison des algorithmes.
+- **utils/**: Fonctions utilitaires communes.
+
+### `scripts/`
+- **data_collection.py**: Collecte et stocke les données dans la base de données.
+- **run_simulation.py**: Exécute une simulation multi-agents.
+- **compare_algorithms.py**: Compare les algorithmes d'ordonnancement sur des benchmarks.
+
+### `tests/`
+- Inclut des tests unitaires pour les différentes composantes du projet.
+
+## Étapes Suivantes
+1. Complétez `seed_data.py` pour initialiser la base de données.
+2. Implémentez chaque algorithme comme une sous-classe de `base_model.py`.
+3. Ajoutez des métriques personnalisées dans `metrics.py`.
+4. Utilisez `compare_algorithms.py` pour exécuter les benchmarks et générer un rapport comparatif.
