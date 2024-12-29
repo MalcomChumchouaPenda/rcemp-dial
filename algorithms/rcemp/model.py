@@ -8,8 +8,8 @@ from .env import Env
 
 class RCEMPModel(BasicModel):
 
-    def __init__(self, db_id, benchmark_id, problem_id, verbose=None, seed=None):
-        super().__init__(db_id, benchmark_id, problem_id, verbose=verbose, seed=seed)
+    def __init__(self, dbms_id, benchmark_id, problem_id, verbose=None, seed=None):
+        super().__init__(dbms_id, benchmark_id, problem_id, verbose=verbose, seed=seed)
         self.env = Env(self)
         
         problem = self.experiment.problem

@@ -28,9 +28,9 @@ FIG_DIR = TBL_DIR = RESULT_DIR
 
 class View:
     
-    def __init__(self, benchmark_id, db_id, echo=False):
+    def __init__(self, benchmark_id, dbms_id, echo=False):
         super().__init__()
-        dbcls = cst.DATABASES[db_id]
+        dbcls = cst.DATABASES[dbms_id]
         self.db = dbcls(benchmark_id, verbose=echo)
         
     def load_results(self, sql):

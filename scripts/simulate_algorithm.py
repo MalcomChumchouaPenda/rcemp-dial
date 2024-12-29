@@ -7,39 +7,10 @@ from utils import constants as cst
 
 
 def simulate():
+    # welcome message
     print('type following parameters:')
-    model_id, modelcls = _ask_model_id_and_cls()
-    db_id, dbcls = _ask_db_id_and_cls()
-    benchmark_id = _ask_benchmark_id()
-    seed = _ask_seed()
-    verbose = _ask_verbose()
-    filter_ = _ask_filter()
-    num_proc = _ask_num_process()
-    db = dbcls(benchmark_id, verbose)
-    problem_ids = _find_problems(db, filter_)
-    _clear_previous(db, problem_ids)
-    exp_ids = _create_experiments(db, model_id, problem_ids)
-    display = not verbose
-    params = {'db_id':db_id, 'benchmark_id':benchmark_id, 'problem_id':problem_ids, 'verbose':verbose, 'seed':seed}
-    results = batch_run(modelcls, params, number_processes=num_proc, display_progress=display)
-    _save_results(db, exp_ids, results)
-    db.disconnect()
 
-def _ask_db_id_and_cls():
-    db_id = input('> DBMS name: ')
-    choices = cst.DATABASES
-    keys = list(choices.keys())
-    while db_id not in keys:
-        print(f'Error! Choose among following DBMS:\n{keys}')
-        db_id = input('> DBMS name: ')
-    dbcls = choices[db_id]
-    return db_id, dbcls
-
-def _ask_benchmark_id():
-    benchmark_id = input('> Benchmark ID: ')
-    return benchmark_id
-
-def _ask_model_id_and_cls():
+    # read algorithm or model name
     model_id = input('> Algorithm or Model name: ')
     choices = cst.MODELS
     keys = list(choices.keys())
@@ -47,75 +18,78 @@ def _ask_model_id_and_cls():
         print(f'Error! Choose among following models:\n{keys}')
         model_id = input('> Algorithm or Model name: ')
     modelcls = choices[model_id]
-    return model_id, modelcls
+    
+    # read benchmark and dbms ids
+    benchmark_id = input('> Benchmark ID: ')
+    dbms_id = input('> DBMS name: ')
+    choices = cst.DATABASES
+    keys = list(choices.keys())
+    while dbms_id not in keys:
+        print(f'Error! Choose among following DBMS:\n{keys}')
+        dbms_id = input('> DBMS name: ')
+    dbcls = choices[dbms_id]
 
-def _ask_verbose():
-    verbose = input('> Display progress details? (O/N):')
-    return verbose.lower().strip() == 'o'
-
-def _ask_filter():
+    # read any filter
     filter_ = input('> Any Filter? :')
     if len(filter_.strip()) == 0:
         filter_ = None
-    return filter_
 
-def _ask_num_process():
+    # read verbose or seed params
+    verbose = input('> Display progress details? (O/N):')
+    verbose = verbose.lower().strip() == 'o'
+    try:
+        seed = input('> Specify seed? (default=None): ')
+        seed = int(seed.strip())
+    except ValueError:
+        seed = None
+
+    # read number of process
     num_proc = input('> Number of process? (default=1): ')
     try:
-        return int(num_proc.strip())
+        num_proc = int(num_proc.strip())
     except ValueError:
-        return 1
-    
-def _ask_seed():
-    seed = input('> Specify seed? (default=None): ')
-    try:
-        return int(seed.strip())
-    except ValueError:
-        return
-    
+        num_proc = 1
 
-def _find_problems(db, filter_):
+    # create db connection
+    db = dbcls(benchmark_id, verbose)
     session = db.connect()
+
+    # find all problems
     Pb = sch.Problem
     query = session.query(Pb)
     if filter_:
         query = query.filter(Pb.name.like(filter_))
-    pb_ids = [p.uid for p in query.all()]
-    session.close()
-    return pb_ids
+    problem_ids = [p.uid for p in query.all()]
 
-def _clear_previous(db, problem_ids):
-    session = db.connect()
+    # clear previous experiments
     Exp = sch.Experiment
     query = session.query(Exp)
     query = query.filter(Exp.problem_id.in_(problem_ids))
     for exp in query.all():
         session.delete(exp)
     session.commit()
-    session.close()
 
-def _create_experiments(db, model_id, problem_ids):
+    # create new experiments
     if model_id.endswith('Model'):
         model_name = model_id
     else:
         model_name = model_id + 'Model'
-    session = db.connect()
-    Exp = sch.Experiment    
     Uid = Exp.next_uid
-    exp_ids = {}
+    experiment_ids = {}
     for problem_id in problem_ids:
         uid = Uid()
         experiment = Exp(uid=uid, problem_id=problem_id, model_name=model_name)
         session.add(experiment)
-        exp_ids[problem_id] = uid
+        experiment_ids[problem_id] = uid
     session.commit()
-    session.close()
-    return exp_ids
 
-def _save_results(db, experiment_ids, results):
-    session = db.connect()
-    metadata = ['RunId', 'iteration', 'benchmark_id',  'problem_id', 
-                'db_id', 'verbose', 'seed']
+    # run experiments
+    display = not verbose
+    params = {'dbms_id':dbms_id, 'benchmark_id':benchmark_id, 'problem_id':problem_ids, 'verbose':verbose, 'seed':seed}
+    results = batch_run(modelcls, params, number_processes=num_proc, display_progress=display)
+
+    # save results
+    metadata = ['RunId', 'iteration',  'benchmark_id', 'problem_id', 'dbms_id', 'verbose', 'seed']
     Stat = sch.Statistic
     # pprint(results)
     for result in results:
@@ -126,7 +100,11 @@ def _save_results(db, experiment_ids, results):
                  if k not in metadata]
         session.add_all(stats)
         session.commit()
+    
+    # close db connection
     session.close()
+    db.disconnect()
+
 
 
 if __name__ == '__main__':

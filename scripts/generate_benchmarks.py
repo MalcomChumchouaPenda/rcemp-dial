@@ -5,7 +5,7 @@ from benchmarks import generators as gen
 
 def generate():
     print('type following parameters:')
-    _, dbcls = _ask_db_id_and_cls()
+    _, dbcls = _ask_dbms_id_and_cls()
     benchmark_id, generatorcls = _ask_generator_id_and_cls()
     verbose = _ask_verbose()
     replace = _ask_replace()
@@ -17,18 +17,18 @@ def generate():
     generator.generate()
     print('\nGeneration terminated !!!')
 
-def _ask_db_id_and_cls():
-    db_id = input('> DBMS name: ')
+def _ask_dbms_id_and_cls():
+    dbms_id = input('> DBMS name: ')
     try:
-        dbcls = getattr(dbs, f'{db_id}Db')
+        dbcls = getattr(dbs, f'{dbms_id}Db')
     except AttributeError:
         choices = dbs.Db.listing()
         keys = list(choices.keys())
-        while db_id not in keys:
+        while dbms_id not in keys:
             print(f'Error! Choose among following DBMS:\n{keys}')
-            db_id = input('> DBMS name: ')
-        dbcls = choices[db_id]
-    return db_id, dbcls
+            dbms_id = input('> DBMS name: ')
+        dbcls = choices[dbms_id]
+    return dbms_id, dbcls
 
 def _ask_generator_id_and_cls():
     benchmark_id = input('> Benchmark ID: ')

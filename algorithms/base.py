@@ -66,14 +66,14 @@ class BasicAgent(Agent):
 
 class BasicModel(Model):
 
-    def __init__(self, db_id, benchmark_id, problem_id, verbose=None, seed=None):
+    def __init__(self, dbms_id, benchmark_id, problem_id, verbose=None, seed=None):
         super().__init__(seed=seed)
         self.verbose = verbose
-        self.db_id = db_id
+        self.dbms_id = dbms_id
         self.problem_id = problem_id
         self.benchmark_id = benchmark_id
 
-        dbcls = getattr(dbs, f'{db_id}Db')
+        dbcls = getattr(dbs, f'{dbms_id}Db')
         db = dbcls(benchmark_id, verbose=verbose)
         session = db.connect()
         self.session = session
