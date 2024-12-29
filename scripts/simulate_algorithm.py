@@ -1,7 +1,6 @@
 
 from pprint import pprint
 from mesa import batch_run
-from algorithms import base
 from benchmarks import schema as sch
 from utils import constants as cst
 
@@ -106,7 +105,5 @@ def simulate():
     db.disconnect()
 
 
-
 if __name__ == '__main__':
     simulate()
-
