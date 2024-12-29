@@ -3,7 +3,7 @@ from pprint import pprint
 from mesa import batch_run
 from algorithms import base
 from benchmarks import schema as sch
-from . import _shared_variables as vars
+from utils import constants as cst
 
 
 def simulate():
@@ -27,7 +27,7 @@ def simulate():
 
 def _ask_db_id_and_cls():
     db_id = input('> DBMS name: ')
-    choices = vars.DATABASES
+    choices = cst.DATABASES
     keys = list(choices.keys())
     while db_id not in keys:
         print(f'Error! Choose among following DBMS:\n{keys}')
@@ -41,7 +41,7 @@ def _ask_benchmark_id():
 
 def _ask_model_id_and_cls():
     model_id = input('> Algorithm or Model name: ')
-    choices = vars.MODELS
+    choices = cst.MODELS
     keys = list(choices.keys())
     while model_id not in keys:
         print(f'Error! Choose among following models:\n{keys}')
