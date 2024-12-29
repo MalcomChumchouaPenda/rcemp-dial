@@ -5,45 +5,57 @@ from benchmarks import generators as gen
 
 def generate():
     print('type following parameters:')
-    _, dbcls = _get_db_id_and_cls()
-    bid, generatorcls = _get_generator_id_and_cls()
-    verbose = input('> Display progress details? (O/N):')
-    verbose = verbose.lower().strip() == 'o'
-    replace = input('> Replace old data? (O/N):')
-    replace = replace.lower().strip() == 'o'
-    filter_ = input('> Any Filter? :')
-    db = dbcls(bid, verbose)
+    _, dbcls = _ask_db_id_and_cls()
+    benchmark_id, generatorcls = _ask_generator_id_and_cls()
+    verbose = _ask_verbose()
+    replace = _ask_replace()
+    filter_ = _ask_filter()
+    db = dbcls(benchmark_id, verbose)
     generator = generatorcls(db, filter_=filter_)
     if replace:
         generator.clear()
     generator.generate()
     print('\nGeneration terminated !!!')
 
-def _get_db_id_and_cls():
-    did = input('> DBMS name: ')
+def _ask_db_id_and_cls():
+    db_id = input('> DBMS name: ')
     try:
-        dbcls = getattr(gen, f'{did}Db')
+        dbcls = getattr(dbs, f'{db_id}Db')
     except AttributeError:
         choices = dbs.Db.listing()
         keys = list(choices.keys())
-        while did not in keys:
+        while db_id not in keys:
             print(f'Error! Choose among following DBMS:\n{keys}')
-            did = input('> DBMS name: ')
-        dbcls = choices[did]
-    return did, dbcls
+            db_id = input('> DBMS name: ')
+        dbcls = choices[db_id]
+    return db_id, dbcls
 
-def _get_generator_id_and_cls():
-    bid = input('> Benchmark ID: ')
+def _ask_generator_id_and_cls():
+    benchmark_id = input('> Benchmark ID: ')
     try:
-        generatorcls = getattr(gen, f'{bid}Generator')
+        generatorcls = getattr(gen, f'{benchmark_id}Generator')
     except AttributeError:
         choices = gen.BenchmarkGenerator.listing()
         keys = list(choices.keys())
-        while bid not in keys:
+        while benchmark_id not in keys:
             print(f'Error! Choose among following Benchmarks:\n{keys}')
-            bid = input('> Benchmark ID: ')
-        generatorcls = choices[bid]
-    return bid, generatorcls
+            benchmark_id = input('> Benchmark ID: ')
+        generatorcls = choices[benchmark_id]
+    return benchmark_id, generatorcls
+
+def _ask_verbose():
+    verbose = input('> Display progress details? (O/N):')
+    return verbose.lower().strip() == 'o'
+
+def _ask_replace():
+    replace = input('> Replace old data? (O/N):')
+    return replace.lower().strip() == 'o'
+
+def _ask_filter():
+    filter_ = input('> Any Filter? :')
+    if len(filter_.strip()) == 0:
+        filter_ = None
+    return filter_
 
 
 if __name__ == '__main__':

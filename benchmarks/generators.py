@@ -32,8 +32,8 @@ class BenchmarkGenerator:
         benchmarks = {}
         for subclass in cls.__subclasses__():
             name = subclass.__qualname__
-            bid = name.replace('Generator', '')
-            benchmarks[bid] = subclass
+            benchmark_id = name.replace('Generator', '')
+            benchmarks[benchmark_id] = subclass
         return benchmarks
 
 

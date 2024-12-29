@@ -3,7 +3,7 @@ from itertools import groupby
 from operator import itemgetter
 import numpy as np
 from collections import OrderedDict, defaultdict
-from benchmarks import schemas as sch
+from benchmarks import schema as sch
 from ..base import BasicAgent, TaskID, RessourceID
 from .env import Position, Proposal
     
@@ -130,7 +130,7 @@ class RegulatorAgent(BasicAgent):
 
         # calcul idle time and externalities
         apply_penality = env.apply_penality
-        for pid, pfp in ma_order.items():
+        for problem_id, pfp in ma_order.items():
             prev_fp = None
             penality = 0
             idle = 0
@@ -139,7 +139,7 @@ class RegulatorAgent(BasicAgent):
                 r_list = [0]
                 if prev_fp:
                     r_list.append(prev_fp.end)         
-                if tid.aid == pid:
+                if tid.aid == problem_id:
                     # case of TM
                     mfp = mr_order[fp.rid.aid]
                     r_list.extend([x.end for x in mfp if x.end <= fp.start])

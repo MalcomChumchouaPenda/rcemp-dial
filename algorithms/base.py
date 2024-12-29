@@ -9,7 +9,6 @@ from mesa.time import BaseScheduler
 from mesa.datacollection import DataCollector
 
 from benchmarks import schema as sch
-from benchmarks import metrics as mt
 from benchmarks import databases as dbs
 # from benchmarks import Db, Experiment
 from utils.logging import get_logger
@@ -23,9 +22,6 @@ from utils.logging import get_logger
 # sid = skill identifer
 # aid = agent identifer
 # rid = ressource identifier
-# did = DBMS identifier
-# bid = benchmark identifier
-# pid = problem Identifier
 #----------------------------------------------------
 
 
@@ -70,22 +66,23 @@ class BasicAgent(Agent):
 
 class BasicModel(Model):
 
-    def __init__(self, did, bid, pid, verbose=None, seed=None):
+    def __init__(self, db_id, benchmark_id, problem_id, verbose=None, seed=None):
         super().__init__(seed=seed)
         self.verbose = verbose
-        self.did = did
-        self.pid = pid
-        self.bid = bid
+        self.db_id = db_id
+        self.problem_id = problem_id
+        self.benchmark_id = benchmark_id
 
-        dbcls = getattr(dbs, f'{did}Db')
-        db = dbcls(bid, verbose=verbose)
+        dbcls = getattr(dbs, f'{db_id}Db')
+        db = dbcls(benchmark_id, verbose=verbose)
         session = db.connect()
         self.session = session
+        self.db = db
 
         model_name = self.__class__.__qualname__
         query = session.query(sch.Experiment)
         query = query.filter_by(model_name=model_name)
-        query = query.filter_by(pid=pid)
+        query = query.filter_by(problem_id=problem_id)
         experiment = query.one()
         self.experiment = experiment
 
@@ -97,9 +94,19 @@ class BasicModel(Model):
         self.elapsed_time = 0
         self.logger = get_logger(experiment.name, verbose=verbose)
         self.schedule = BaseScheduler(self)
-        self.datacollector = DataCollector(model_reporters=mt.MODEL_METRICS,
-                                           agent_reporters=mt.AGENT_METRICS)
+        self.datacollector = DataCollector(model_reporters=self.model_reporters(),
+                                           agent_reporters=self.agent_reporters())
     
+    def model_reporters(self):
+        return {'s':"satisfaction", 'Es':'elapsed_time',
+                'nC':'cycle_number', 'nTM':'maintenance_number',
+                'nR':'late_job_number', 'R':'total_tardiness',
+                'Cmax':'max_completion_time', 'Abar':'unavailability'}
+
+    def agent_reporters(self):
+        return {}
+    
+
     def stop(self):
         self.running = False
         self.session.commit()
@@ -117,6 +124,7 @@ class BasicModel(Model):
         self.datacollector.collect(self)
         # self.session.flush()
         # self.session.commit()
+    
     
 
 class BasicEnv(OrderedDict):

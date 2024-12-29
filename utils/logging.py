@@ -5,11 +5,12 @@ import queue as que
 import logging as log
 import functools as fct
 from logging import handlers as logh
+from config import LOG_DIR
 
 
-CUR_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(CUR_DIR)
-LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
+# CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+# ROOT_DIR = os.path.dirname(CUR_DIR)
+# LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
 
 _LOG_BACKUP_COUNT = 100
 _LOG_MAX_BYTES = 20000000
@@ -23,7 +24,7 @@ _FORMATTER = log.Formatter(_LOG_FORMAT)
 def get_logger(name, verbose=None):
     level = log.DEBUG if verbose else log.WARNING
     log_uid = uuid4().hex
-    logfile = os.path.join(LOGS_DIR, '%s_%s.log' % (name, log_uid))
+    logfile = os.path.join(LOG_DIR, '%s_%s.log' % (name, log_uid))
     filehandler = logh.RotatingFileHandler(logfile, 
                                             maxBytes=_LOG_MAX_BYTES, 
                                             backupCount=_LOG_BACKUP_COUNT)
