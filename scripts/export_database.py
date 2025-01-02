@@ -1,8 +1,11 @@
 
 import os
+from datetime import datetime
+
 import pandas as pd
 from tqdm import tqdm
 from sqlalchemy import select
+
 from config import DATA_DIR
 from utils import constants as cst
 from benchmarks.schema import Base
@@ -27,7 +30,9 @@ def export():
     verbose = verbose.lower().strip() == 'o'
 
     # check output dir
-    output_dir = os.path.join(DATA_DIR, 'raw', benchmark_id)
+    now = datetime.now().strftime('%Y-%m-%d')
+    backup_name = f'{benchmark_id} {now}'
+    output_dir = os.path.join(DATA_DIR, 'raw', backup_name)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
