@@ -23,13 +23,6 @@ class Db:
     
     def disconnect(self):
         pass
-
-    @classmethod
-    def listing(cls):
-        kinds = {}
-        for subclass in cls.__subclasses__():
-            kinds[subclass.DBMS_NAME] = subclass
-        return kinds
     
 
 class SqliteDb(Db):

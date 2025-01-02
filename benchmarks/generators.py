@@ -25,15 +25,6 @@ class BenchmarkGenerator:
         metadata.drop_all(bind=engine, checkfirst=True)
         metadata.create_all(engine)
 
-    # @classmethod
-    # def listing(cls):
-    #     benchmarks = {}
-    #     for subclass in cls.__subclasses__():
-    #         name = subclass.__qualname__
-    #         benchmark_id = name.replace('Generator', '')
-    #         benchmarks[benchmark_id] = subclass
-    #     return benchmarks
-
 
 class GeneratorThread(Thread):
     
