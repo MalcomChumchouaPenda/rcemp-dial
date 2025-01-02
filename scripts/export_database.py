@@ -17,13 +17,13 @@ def export():
     
     # read benchmark and dbms ids
     benchmark_id = input('> Benchmark ID: ')
-    dbms_id = input('> DBMS name: ')
+    db_type = input('> DB type: ')
     choices = cst.DATABASES
     keys = list(choices.keys())
-    while dbms_id not in keys:
+    while db_type not in keys:
         print(f'Error! Choose among following DBMS:\n{keys}')
-        dbms_id = input('> DBMS name: ')
-    dbcls = choices[dbms_id]
+        db_type = input('> DB type: ')
+    dbcls = choices[db_type]
 
     # read verbose param
     verbose = input('> Display progress details? (O/N):')
@@ -47,9 +47,9 @@ def export():
 
         # visit all tables
         for table in tables:
-            columns = table.c
             statement = select(table)
             records = conn.execute(statement).fetchall()
+            columns = [col.name for col in table.c]
             df = pd.DataFrame(records, columns=columns)
             filename = os.path.join(output_dir, "%s.csv" % table)
             df.to_csv(filename, index=False, encoding='utf-8')

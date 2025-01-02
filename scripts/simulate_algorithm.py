@@ -20,13 +20,13 @@ def simulate():
     
     # read benchmark and dbms ids
     benchmark_id = input('> Benchmark ID: ')
-    dbms_id = input('> DBMS name: ')
+    db_type = input('> DB type: ')
     choices = cst.DATABASES
     keys = list(choices.keys())
-    while dbms_id not in keys:
+    while db_type not in keys:
         print(f'Error! Choose among following DBMS:\n{keys}')
-        dbms_id = input('> DBMS name: ')
-    dbcls = choices[dbms_id]
+        db_type = input('> DB type: ')
+    dbcls = choices[db_type]
 
     # read any filter
     filter_ = input('> Any Filter? :')
@@ -83,11 +83,11 @@ def simulate():
 
     # run experiments
     display = not verbose
-    params = {'dbms_id':dbms_id, 'benchmark_id':benchmark_id, 'problem_id':problem_ids, 'verbose':verbose, 'seed':seed}
+    params = {'db_type':db_type, 'benchmark_id':benchmark_id, 'problem_id':problem_ids, 'verbose':verbose, 'seed':seed}
     results = batch_run(modelcls, params, number_processes=num_proc, display_progress=display)
 
     # save results
-    metadata = ['RunId', 'iteration',  'benchmark_id', 'problem_id', 'dbms_id', 'verbose', 'seed']
+    metadata = ['RunId', 'iteration',  'benchmark_id', 'problem_id', 'db_type', 'verbose', 'seed']
     Stat = sch.Statistic
     # pprint(results)
     for result in results:

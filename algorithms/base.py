@@ -68,14 +68,14 @@ class BasicModel(Model):
 
     ALGORITHM_NAME = ''
 
-    def __init__(self, dbms_id, benchmark_id, problem_id, verbose=None, seed=None):
+    def __init__(self, db_type, benchmark_id, problem_id, verbose=None, seed=None):
         super().__init__(seed=seed)
         self.verbose = verbose
-        self.dbms_id = dbms_id
+        self.db_type = db_type
         self.problem_id = problem_id
         self.benchmark_id = benchmark_id
 
-        dbcls = getattr(dbs, f'{dbms_id}Db')
+        dbcls = getattr(dbs, f'{db_type}Db')
         db = dbcls(benchmark_id, verbose=verbose)
         session = db.connect()
         self.session = session

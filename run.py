@@ -2,6 +2,7 @@
 from scripts.generate_benchmarks import generate
 from scripts.simulate_algorithm import simulate
 from scripts.export_database import export
+from scripts.import_database import import_
 
 
 def main():
@@ -13,7 +14,8 @@ def main():
         print('\t1. generate banchmarks')
         print('\t2. simulate algorithm')
         print('\t3. export benchmark data')
-        print('\t4. exit this program (Ctrl+C)')
+        print('\t4. import benchmark data')
+        print('\t5. exit this program (Ctrl+C)')
         choice = int(input('Type your choice: '))
         if choice == 1:
             generate()
@@ -21,6 +23,8 @@ def main():
             simulate()
         elif choice == 3:
             export()
+        elif choice == 4:
+            import_()
         else:
             running = False
 

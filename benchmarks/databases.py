@@ -44,10 +44,10 @@ class MySqlDb(Db):
     DBMS_NAME = 'MySql'
 
     def __init__(self, name, verbose=True):
-        super().__init__()
+        super().__init__(name, verbose=verbose)
         self._check_database(name)
         connargs = dict(connect_timeout=6000)
-        connstr = f"mysql+mysqlconnector://rcemp:rcemp@localhost:3306/{name}"
+        connstr = f"mysql+mysqlconnector://{cfg.MYSQL_USERNAME}:{cfg.MYSQL_USERPWD}@localhost:3306/{name}"
         # engine = create_engine(connstr, echo=verbose, connect_args=connargs, pool_pre_ping=True)       
         engine = create_engine(connstr, echo=verbose, connect_args=connargs)    
         sch.Base.metadata.create_all(engine)
@@ -56,7 +56,7 @@ class MySqlDb(Db):
         self.engine = engine
 
     def _check_database(self, name):
-        cnx = mysql.connector.connect(user='rcemp', password='rcemp')
+        cnx = mysql.connector.connect(user=cfg.MYSQL_USERNAME, password=cfg.MYSQL_USERPWD)
         cursor = cnx.cursor()
         try:
             cursor.execute("USE {}".format(name))
@@ -74,8 +74,7 @@ class MySqlDb(Db):
 
     def _create_database(self, cursor, name):
         try:
-            cursor.execute(
-                "CREATE DATABASE {} DEFAULT CHARACTER SET 'utf8'".format(name))
+            cursor.execute("CREATE DATABASE {} DEFAULT CHARACTER SET 'utf8'".format(name))
         except mysql.connector.Error as err:
             print("Failed creating database: {}".format(err))
             exit(1)

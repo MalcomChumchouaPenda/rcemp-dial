@@ -7,13 +7,13 @@ def generate():
     print('type following parameters:')
 
     # read dbms id and class
-    dbms_id = input('> DBMS name: ')
+    db_type = input('> DB type: ')
     choices = cst.DATABASES
     keys = list(choices.keys())
-    while dbms_id not in keys:
+    while db_type not in keys:
         print(f'Error! Choose among following DBMS:\n{keys}')
-        dbms_id = input('> DBMS name: ')
-    dbcls = choices[dbms_id]
+        db_type = input('> DB type: ')
+    dbcls = choices[db_type]
 
     # read benchmark id and get generator class
     benchmark_id = input('> Benchmark ID: ')
