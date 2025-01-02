@@ -9,14 +9,14 @@ def simulate():
     # welcome message
     print('type following parameters:')
 
-    # read algorithm or model name
-    model_id = input('> Algorithm or Model name: ')
+    # read algorithm name and choose model class
+    algo_name = input('> Algorithm or Model name: ')
     choices = cst.MODELS
     keys = list(choices.keys())
-    while model_id not in keys:
-        print(f'Error! Choose among following models:\n{keys}')
-        model_id = input('> Algorithm or Model name: ')
-    modelcls = choices[model_id]
+    while algo_name not in keys:
+        print(f'Error! Choose among following algorithms:\n{keys}')
+        algo_name = input('> Algorithm or Model name: ')
+    modelcls = choices[algo_name]
     
     # read benchmark and dbms ids
     benchmark_id = input('> Benchmark ID: ')
@@ -59,6 +59,7 @@ def simulate():
     if filter_:
         query = query.filter(Pb.name.like(filter_))
     problem_ids = [p.uid for p in query.all()]
+    # pprint(problem_ids)
 
     # clear previous experiments
     Exp = sch.Experiment
@@ -69,15 +70,13 @@ def simulate():
     session.commit()
 
     # create new experiments
-    if model_id.endswith('Model'):
-        model_name = model_id
-    else:
-        model_name = model_id + 'Model'
+    model_name = algo_name
     Uid = Exp.next_uid
     experiment_ids = {}
     for problem_id in problem_ids:
         uid = Uid()
         experiment = Exp(uid=uid, problem_id=problem_id, model_name=model_name)
+        # print('\t', experiment)
         session.add(experiment)
         experiment_ids[problem_id] = uid
     session.commit()

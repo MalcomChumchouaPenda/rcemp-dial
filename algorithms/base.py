@@ -66,6 +66,8 @@ class BasicAgent(Agent):
 
 class BasicModel(Model):
 
+    ALGORITHM_NAME = ''
+
     def __init__(self, dbms_id, benchmark_id, problem_id, verbose=None, seed=None):
         super().__init__(seed=seed)
         self.verbose = verbose
@@ -79,7 +81,7 @@ class BasicModel(Model):
         self.session = session
         self.db = db
 
-        model_name = self.__class__.__qualname__
+        model_name = self.ALGORITHM_NAME
         query = session.query(sch.Experiment)
         query = query.filter_by(model_name=model_name)
         query = query.filter_by(problem_id=problem_id)

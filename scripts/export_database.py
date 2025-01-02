@@ -34,9 +34,14 @@ def export():
     # connect to db
     db = dbcls(benchmark_id, verbose=verbose)
     with db.engine.connect() as conn:
+
+        # listing of tables
+        tables = Base.metadata.tables.values()
+        if not verbose:
+            tables = tqdm(tables)
+
         # visit all tables
-        tables = Base.metadata.tables
-        for table in tqdm(tables.values()):
+        for table in tables:
             columns = table.c
             statement = select(table)
             records = conn.execute(statement).fetchall()
