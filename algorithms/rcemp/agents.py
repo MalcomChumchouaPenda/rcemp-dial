@@ -39,6 +39,7 @@ class RegulatorAgent(BasicAgent):
             _ = [m.schedule() for m in mainteners]
             _ = [p.accept() for p in producers]
             _ = [p.schedule() for p in producers]
+            self.log_info(f'maintenance loop number {count_loop}')
             count_loop += 1
             if count_loop > 100:
                 raise RuntimeError(f'too much maintenance {count_tm()}')
@@ -46,7 +47,7 @@ class RegulatorAgent(BasicAgent):
         s0 = count_tf()
         forced = False
         forced = self.time > self._forced_time
-        if self._forced_time > 150:
+        if self._forced_time > 1500:
             msg = f'heavy forced time {self._forced_time} '
             msg += f'max release {max([c.order.release_date for c in customers])}'
             raise RuntimeError(msg)
@@ -76,7 +77,9 @@ class RegulatorAgent(BasicAgent):
         customers = self.customers
         nMO = len(customers)
         H = 250              # horizon temporel fixe
-        factor = H/max([c.order.release_date for c in customers])
+        Rmax = max([c.order.release_date for c in customers])
+        Dmax = min([c.order.due_date for c in customers])
+        factor = H/Rmax if Rmax else H/Dmax
         forced_time = 0.45*nMO*factor
         return forced_time
     
@@ -220,14 +223,20 @@ class RessourceUser:
             PL = [pr for pr in PL if pr.effective.start >= pmax.end]
         best_1 = [ep for ep, pp in PL if ep==pp]
         if len(best_1) > 0:
-            return best_1[0]
+            fp = best_1[0]
+            choices = [p for p in best_1 if p == fp]
+            return self.model.random.choice(choices)
         best_2 = [ep for ep, pp in PL if wp <= ep and wp <= pp and not pp <= ep]
         if len(best_2) > 0:
-            return best_2[0]
+            fp = best_2[0]
+            choices = [p for p in best_2 if p == fp]
+            return self.model.random.choice(choices)
         # if forced and len(PL) > 0:
         #     return min([ep for ep, _ in PL])
         if len(PL) > 0:
-            return min([ep for ep, _ in PL])
+            fp = min([ep for ep, _ in PL])
+            choices = [p for p, _ in PL if p == fp]
+            return self.model.random.choice(choices)
 
 
 class RessourceWrapper:
@@ -453,7 +462,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
                         planned_tms[tid] = wp, dev
                         waiting_tms.append(tid)
                         dev.tasks.append(task)
-                        log_info(f'at {time}:: {self} create task: {wp} for {tid} with duration {duration}')
+                        log_info(f'at {time}:: {self} create task: {wp} for {tid} with dev {Dev} and duration {duration}')
                     return
             
             Pcfu.append(ep)

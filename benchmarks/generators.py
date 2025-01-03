@@ -1,11 +1,16 @@
 
+import os
 import re
 import json
 import functools as fct
 import random as rnd
 from queue import Queue
 from threading import Thread, Event
+
+import pandas as pd
 from scipy import stats
+
+from config import DATA_DIR
 from . import schema as sch
 
 
@@ -287,3 +292,187 @@ class BencheikhAl2022Generator(BenchmarkGenerator):
                          dev31, dev32, dev33])
         session.commit()
 
+
+class Dialysis2021Generator(BenchmarkGenerator):
+
+    def __init__(self, db, filter_='%'):
+        super().__init__(db, filter_=filter_)
+        self.datadir = os.path.join(DATA_DIR, 'raw', 'HGD_dialysis_2018_2021')
+        
+    def generate(self):
+        f = self._generate_problem
+        threads = []
+        for _ in range(4):
+            thread = GeneratorThread(f)
+            thread.start()
+            threads.append(thread)
+
+        machines_data = self._load_machines()
+        patients_data = self._load_patients()
+        prod_slots, maint_slots = self._load_time_slots()
+        print(machines_data)
+        print(patients_data)
+        # raise RuntimeError
+    
+        filter_ = self.filter.replace('%', '.*')
+        filter_ = filter_.replace('_', r'\S')
+        filter_ += '$'
+        x, y = 0, len(threads)
+
+        for period in patients_data.index:
+            patients_row = patients_data.loc[period]
+            machines_group = machines_data[machines_data.periode==period]
+            name = period.strftime('dial_S%Y_%m_%d')
+            print(name)
+            if filter_ is None or re.match(filter_, name):
+                thread = threads[x % y]
+                thread.send(name,
+                            patients_row,
+                            machines_group,
+                            prod_slots,
+                            maint_slots)
+                x += 1
+        
+        uids = []
+        for thread in threads:
+            thread.stop()
+            uids.extend(thread.generated())
+        return uids    
+
+    def _load_machines(self):
+        datapath = os.path.join(self.datadir, 'parametres_machines.csv')
+        return pd.read_csv(datapath, parse_dates=[3])
+    
+    def _load_patients(self):
+        datapath = os.path.join(self.datadir, 'parametres_patients.csv')
+        return pd.read_csv(datapath, index_col='Date', parse_dates=True)
+    
+    def _load_time_slots(self):
+        data1 = pd.read_csv(os.path.join(self.datadir, 'tranches_soins.csv'))
+        data2 = pd.read_csv(os.path.join(self.datadir, 'tranches_maintenances.csv'))
+        return data1, data2
+
+    def _generate_problem(self, name, patients_row, machines_group, 
+                          production_slots, maintenance_slots):
+        session = self.db.connect()
+        uid = sch.Problem.next_uid()
+        pb = sch.Problem(uid=uid, name=name)
+        session.add(pb)
+        session.commit()
+        self._generate_machines(session, pb, machines_group)
+        self._generate_maintenances(session, pb)
+        self._generate_orders(session, pb, patients_row)
+        session.close()
+        return uid
+
+    def _generate_orders(self, session, problem, patients_row):
+        f2 = sch.ManufacturingOrder.next_uid
+        f3 = sch.Routing.next_uid
+        f4 = sch.ProductionTask.next_uid
+
+        u0 = int(patients_row.duree_cycle)
+        u1 = int(patients_row.nb_seance_par_patient)
+        u2 = int(patients_row.duree_seance)      
+        u3 = 'Comp1'
+        u4 = 0
+
+        MO = sch.ManufacturingOrder  
+        RO = sch.Routing
+        OP = sch.ProductionTask
+        
+        n_mo = int(patients_row.nb_patient)
+        for j in range(n_mo):
+            R = u4             # release date
+            D = R + 7*24*u0    # due date
+            name = 'mo{:0>3}'.format(j+1)
+            mo = MO(uid=f2(), name=name, release_date=R, due_date=D)
+            ro = RO(uid=f3(), order=mo)
+            problem.orders.append(mo)
+            rs = u0 * u1
+            for rank in range(rs):
+                op = OP(uid=f4(), 
+                        rank=rank, 
+                        duration=u2, 
+                        activity=u3, 
+                        routing=ro)
+                session.add(op)
+        session.commit()
+    
+    def _generate_maintenances(self, session, problem):
+        f1 = sch.MaintenanceRessource.next_uid
+        f2 = sch.MaintenanceCompetency.next_uid
+
+        for i in range(10):
+            MR = sch.MaintenanceRessource
+            mr1 = MR(uid=f1(), name='mr1%s' % i, problem=problem)
+            mr2 = MR(uid=f1(), name='mr2%s' % i, problem=problem)
+            session.add_all([mr1, mr2])
+            # session.commit()
+
+            CM = sch.MaintenanceCompetency
+            cm1 = CM(uid=f2(), ressource=mr1, capability=1, activity='R1')
+            cm2 = CM(uid=f2(), ressource=mr2, capability=1, activity='R2')
+            session.add_all([cm1, cm2])
+        session.commit()
+
+    def _generate_machines(self, session, problem, machines_group):   
+        mn_id = sch.Machine.next_uid
+        cm_id = sch.ProductionCompetency.next_uid
+        fn_id = sch.Function.next_uid
+        dv_id = sch.Device.next_uid
+        ph_id = sch.PHMModule.next_uid
+
+        MA = sch.Machine
+        CM = sch.ProductionCompetency
+        FN, RFN = sch.Function, fct.partial(sch.Function, redundant=True)
+        for i in range(machines_group.shape[0]):
+            row = machines_group.iloc[i]
+            ma = MA(uid=mn_id(), name=row.Code, problem=problem)
+            session.add(ma)
+            session.commit()
+
+            cm = CM(uid=cm_id(), activity='Comp1', capability=1, ressource=ma)
+            session.add(cm)
+            session.commit()
+
+            f11 = FN(uid=fn_id(), name='f1')
+            f12 = FN(uid=fn_id(), name='f2')
+            f1 = FN(uid=fn_id(), name='F1', competency=cm, machine=ma)
+            f1.children.extend([f11, f12])
+            session.add(f1)
+            session.commit()
+
+            lambda_f = int(row.delai_maintenance_filtre)
+            lambda_g = int(row.delai_maintenance_generale)
+            sigma_f = 12
+            sigma_g = 24
+            law_f = lambda:json.dumps({'name':'norm', 'params':{'loc':lambda_f, 'scale':sigma_f}})
+            law_g = lambda:json.dumps({'name':'norm', 'params':{'loc':lambda_g, 'scale':sigma_g}})
+            
+            phm = sch.PHMModule(uid=ph_id())
+            session.add(phm)
+            # session.commit()
+
+            duration = row.duree_usage
+            Dev, kwargs = sch.Device, dict(phm_module=phm, risk_threshold=0.5, repair_time=5, use_duration=duration)
+            dev1 = Dev(uid=dv_id(), name='Dv1', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev4 = Dev(uid=dv_id(), name='Dv4', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev5 = Dev(uid=dv_id(), name='Dv5', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev6 = Dev(uid=dv_id(), name='Dv6', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev7 = Dev(uid=dv_id(), name='Dv7', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev8 = Dev(uid=dv_id(), name='Dv8', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev9 = Dev(uid=dv_id(), name='Dv9', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev10 = Dev(uid=dv_id(), name='Dv10', repair_skill='R2', machine=ma, json_law=law_f(), **kwargs)
+            dev11 = Dev(uid=dv_id(), name='Dv11', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev12 = Dev(uid=dv_id(), name='Dv12', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev13 = Dev(uid=dv_id(), name='Dv13', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev14 = Dev(uid=dv_id(), name='Dv14', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            dev15 = Dev(uid=dv_id(), name='Dv15', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            f11.devices.extend([dev1, dev2, dev3, dev4, dev5, dev6])
+            f12.devices.extend([dev6, dev7, dev8, dev9, dev10, dev11, dev12, dev13, dev14, dev15])
+            session.add_all([dev1, dev2, dev3, dev4, dev5, dev6, dev7, dev8, dev9, dev10,
+                             dev11, dev12, dev13, dev14, dev15])
+            session.commit()
+    

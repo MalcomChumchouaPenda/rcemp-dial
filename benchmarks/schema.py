@@ -350,6 +350,16 @@ class MaintenanceRessource(Ressource):
     uid = Column(String(100), ForeignKey('ressources.uid'), primary_key=True)
     problem_id = Column(String(100), ForeignKey('problems.uid'))
     
+    
+# PAUSES CLASSES
+
+class Pause(Task):
+
+    __prefix__ = 'ts'
+    __tablename__ = 'pauses'
+    __mapper_args__ = {"polymorphic_identity": "pauses"}
+    uid = Column(String(100), ForeignKey('tasks.uid'), primary_key=True)
+
 
 # PROBLEM CLASSES
 

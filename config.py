@@ -9,4 +9,5 @@ LOG_DIR = os.path.join(DATA_DIR, 'logs')
 RESULT_DIR = os.path.join(DATA_DIR, 'results')
 MYSQL_USERNAME = 'demo'
 MYSQL_USERPWD = 'demo'
+DEFAULT_SEED = 0
 

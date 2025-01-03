@@ -42,7 +42,7 @@ class View:
 class GanttView(View):
 
     GANTT_WIDTH = 12
-    GANTT_UNIT_HEIGHT = 2
+    GANTT_UNIT_HEIGHT = 0.15
     GANTT_TF_THEME = 'winter'
     GANTT_TM_THEME = 'autumn'
 
@@ -69,25 +69,36 @@ class GanttView(View):
         self._render_view(fig, saveas=saveas)
     
     def _build_figure(self, problem_filter, model_filter):
-        sql = f"""select exp.uid as exp_id, pb.uid as pb_id,
-                pb.name as problem_name, exp.model_name
-                from problems pb, experiments as exp
+        sql = f"""
+                select exp.uid as exp_id, pb.uid as pb_id,
+                pb.name as problem_name, exp.model_name,
+                count(res.uid) as count_ressource
+                from problems pb, experiments as exp,
+                (select ma.uid, ma.problem_id
+                from machines as ma
+                union select mr.uid, mr.problem_id
+                from maintenance_ressources as mr) as res
                 where pb.uid = exp.problem_id
+                and exp.problem_id = res.problem_id
                 and pb.name like '{problem_filter}'
                 and exp.model_name like '{model_filter}'
+                group by exp.uid, pb.uid, pb.name, exp.model_name
                 order by pb.name, exp.model_name desc, exp.uid"""
         experiments = self.load_results(sql).to_dict('records')
         experiments.sort(key=itemgetter('problem_name'))
-        count = len(experiments)
-        if count == 0:
+        count_experiment = len(experiments)
+        count_ressources = max([r['count_ressource'] for r in experiments])
+        if count_experiment == 0:
             return None, None, None
-        elif count == 1:
-            figsize = self.GANTT_WIDTH, self.GANTT_UNIT_HEIGHT
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
+        elif count_experiment == 1:
+            width = self.GANTT_WIDTH
+            height = int(self.GANTT_UNIT_HEIGHT * count_ressources)
+            fig, ax = plt.subplots(1, 1, figsize=(width, height))
             return fig, [ax], experiments
         else:
-            figsize = self.GANTT_WIDTH, self.GANTT_UNIT_HEIGHT * count
-            fig, axes = plt.subplots(count, 1, figsize=figsize)
+            width = self.GANTT_WIDTH
+            height = int(self.GANTT_UNIT_HEIGHT * count_ressources * count_experiment)
+            fig, axes = plt.subplots(count_experiment, 1, figsize=(width, height))
             return fig, axes, experiments
 
     def _build_data(self, experiment, time_window=None):
@@ -204,7 +215,7 @@ class GanttView(View):
 
         # limits
         if time_window is None:
-            ax.set_xlim(0, max(data['edate']) + 1)
+            ax.set_xlim(0, max(data['edate'].fillna(0)) + 1)
         else:
             ax.set_xlim(*time_window)
         ax.set_yticks(sorted(ma_names) + [' '])
