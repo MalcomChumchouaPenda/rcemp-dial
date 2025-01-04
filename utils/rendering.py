@@ -43,6 +43,7 @@ class GanttView(View):
 
     GANTT_WIDTH = 12
     GANTT_UNIT_HEIGHT = 0.15
+    GANT_MIN_HEIGHT = 2
     GANTT_TF_THEME = 'winter'
     GANTT_TM_THEME = 'autumn'
 
@@ -93,11 +94,13 @@ class GanttView(View):
         elif count_experiment == 1:
             width = self.GANTT_WIDTH
             height = int(self.GANTT_UNIT_HEIGHT * count_ressources)
+            height = max(height, self.GANT_MIN_HEIGHT)
             fig, ax = plt.subplots(1, 1, figsize=(width, height))
             return fig, [ax], experiments
         else:
             width = self.GANTT_WIDTH
             height = int(self.GANTT_UNIT_HEIGHT * count_ressources * count_experiment)
+            height = max(height, self.GANT_MIN_HEIGHT * count_experiment)
             fig, axes = plt.subplots(count_experiment, 1, figsize=(width, height))
             return fig, axes, experiments
 

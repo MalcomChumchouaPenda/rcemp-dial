@@ -3,6 +3,7 @@ from pprint import pprint
 from mesa import batch_run
 from benchmarks import schema as sch
 from utils import constants as cst
+from config import DEFAULT_SEED
 
 
 def simulate():
@@ -37,10 +38,10 @@ def simulate():
     verbose = input('> Display progress details? (O/N):')
     verbose = verbose.lower().strip() == 'o'
     try:
-        seed = input('> Specify seed? (default=None): ')
+        seed = input(f'> Specify seed? (default={DEFAULT_SEED}): ')
         seed = int(seed.strip())
     except ValueError:
-        seed = None
+        seed = DEFAULT_SEED
 
     # read number of process
     num_proc = input('> Number of process? (default=1): ')

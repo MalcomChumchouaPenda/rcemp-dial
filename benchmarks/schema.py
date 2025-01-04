@@ -2,7 +2,6 @@
 import json
 from uuid import uuid4
 from functools import cached_property
-
 from sqlalchemy import Column, ForeignKey, Integer, String, Float, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
@@ -222,10 +221,12 @@ class Function(Identifiable, Base):
                 if not test:
                     failures0.append(device)
                 status = status and test
+                # print(device, status, test)
             for child in self.children:
                 test, failures1 = child.check_status(duration)
                 failures0.extend(failures1)
                 status = status and test
+                # print(child, status, test)
         else:
             status = False
             key = lambda item: item.rul()
@@ -271,6 +272,8 @@ class Device(Identifiable, Base):
     risk_threshold = Column(Float, nullable=False)
     repair_time = Column(Float, nullable=False)
     use_duration = Column(Integer, default=0)
+    initial_duration = Column(Integer, default=0)
+    next_duration = Column(Integer, default=0)
     repair_skill = Column(String(200), nullable=False)
     json_law = Column(Text(4294000000), nullable=False)
     machine_id = Column(String(100), ForeignKey('machines.uid'))
@@ -284,8 +287,8 @@ class Device(Identifiable, Base):
     def law(self):
         return json.loads(self.json_law)
 
-    def rul(self):
-        return self.phm_module.rul(self)
+    def rul(self, next=True):
+        return self.phm_module.rul(self, next=next)
 
     def count_task(self):
         return len(self.tasks)
@@ -300,14 +303,13 @@ class Device(Identifiable, Base):
         self.use_duration = 0
     
     def check_status(self, duration):
-        old_duration = self.use_duration
-        self.use_duration = duration
-        pdf = self.rul()                          # probability of failure
+        self.next_duration += duration
+        pdf = self.rul(next=True)                          # probability of failure
         status = pdf < 1-self.risk_threshold
-        # if status == False:
-        #     print(self.machine, self, 'checked with health', status, pdf, 'and duration:', self.use_duration)
-        self.use_duration = old_duration
         return status
+
+    def update_status(self, maintened=True):
+        self.next_duration = 0 if maintened else self.use_duration
 
 
 class PHMModule(Identifiable, Base):
@@ -317,10 +319,13 @@ class PHMModule(Identifiable, Base):
     uid = Column(String(100), primary_key=True)
     devices = relationship('Device', backref='phm_module', cascade=CASCADE)
     
-    def rul(self, device):
+    def rul(self, device, next=True):
         law = device.law
         law_stats = getattr(stats, law['name'])
-        return law_stats.cdf(device.use_duration, **law['params'])
+        duration = device.next_duration if next else device.use_duration
+        rul = law_stats.cdf(duration, **law['params'])
+        # print(device, rul, device.use_duration, law['params'])
+        return rul
 
     
 # MAINTENANCE CLASSES

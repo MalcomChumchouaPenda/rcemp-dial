@@ -7,8 +7,8 @@ class DialCustomerAgent(CustomerAgent):
     
     def __init__(self, model, order):
         super().__init__(model, order)
-        ptime = sum([t.duration for t in order.routing.tasks])
-        self.max_due_date = order.due_date + ptime
+        # ptime = sum([t.duration for t in order.routing.tasks])
+        self.max_due_date = order.due_date + 24                # Max lateness is 24h
 
     def calc_fp(self, wp, PL, plast=None, forced=None):
         max_end = self.max_due_date

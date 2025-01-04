@@ -5,3 +5,4 @@ __pycache__/
 **copy**.**
 **.log
 **.pyc
+/logs

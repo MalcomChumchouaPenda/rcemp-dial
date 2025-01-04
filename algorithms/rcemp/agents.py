@@ -192,7 +192,8 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         self.machine = machine
         self.rid = RessourceID(machine.name, machine.uid)
         for dev in machine.devices:
-            dev.use_duration = 0
+            dev.use_duration = dev.initial_duration
+            dev.next_duration = dev.initial_duration
         self.capabilities = {c.activity:c.capability for c in machine.competencies}      # capabilities
         self.functions = {c.activity:c.function for c in machine.competencies}
 
@@ -223,7 +224,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         
         calc_ep = self.calc_ep
         calc_pp = self.calc_pp
-        duration = 0
+        # duration = 0
 
         Pcfv = list(planned_tfs.values())
         Pcfv.extend([fp for fp, _ in planned_tms.values()])
@@ -233,7 +234,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
             pp = calc_pp(wp, Cap[sid], Pcfv)
             ep = calc_ep(wp, Cap[sid], Pcfv + Pcfu)
 
-            duration += pp.end - pp.start
+            duration = pp.end - pp.start
             status, Dev = Fn[sid].check_status(duration)
             if not status:
                 planned_dev = [dev for wp, dev in planned_tms.values() if wp.end >= ep.start]
@@ -302,6 +303,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
             else:
                 accept(tid, fp)
                 planned_tms[tid] = fp, dev
+                dev.update_status(maintened=True)
                 log_info(f'at {time}:: {self} accept {fp} for {tid}') 
 
     def validate(self):
@@ -342,9 +344,10 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
                 prev_tfs = [x for x in Dc if x > prev_fp and x < fp]
             prev_fp = fp
 
-            if len(prev_tfs) == 0:
+            if len(prev_tfs) == 0 and dev.use_duration == 0:
                 reject(tid)
                 planned_tms.pop(tid)
+                dev.update_status(maintened=False)
                 log_info(f'at {time}:: {self} reject {fp} for {tid}')
             
             else:

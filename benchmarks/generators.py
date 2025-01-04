@@ -398,17 +398,16 @@ class Dialysis2021Generator(BenchmarkGenerator):
         f1 = sch.MaintenanceRessource.next_uid
         f2 = sch.MaintenanceCompetency.next_uid
 
-        for i in range(10):
-            MR = sch.MaintenanceRessource
-            mr1 = MR(uid=f1(), name='mr1%s' % i, problem=problem)
-            mr2 = MR(uid=f1(), name='mr2%s' % i, problem=problem)
-            session.add_all([mr1, mr2])
-            # session.commit()
+        MR = sch.MaintenanceRessource
+        mr1 = MR(uid=f1(), name='mr1', problem=problem)
+        mr2 = MR(uid=f1(), name='mr2', problem=problem)
+        session.add_all([mr1, mr2])
+        # session.commit()
 
-            CM = sch.MaintenanceCompetency
-            cm1 = CM(uid=f2(), ressource=mr1, capability=1, activity='R1')
-            cm2 = CM(uid=f2(), ressource=mr2, capability=1, activity='R2')
-            session.add_all([cm1, cm2])
+        CM = sch.MaintenanceCompetency
+        cm1 = CM(uid=f2(), ressource=mr1, capability=1, activity='R1')
+        cm2 = CM(uid=f2(), ressource=mr2, capability=1, activity='R2')
+        session.add_all([cm1, cm2])
         session.commit()
 
     def _generate_machines(self, session, problem, machines_group):   
@@ -450,7 +449,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
             # session.commit()
 
             duration = row.duree_usage
-            Dev, kwargs = sch.Device, dict(phm_module=phm, risk_threshold=0.5, repair_time=5, use_duration=duration)
+            Dev, kwargs = sch.Device, dict(phm_module=phm, risk_threshold=0.5, repair_time=5, initial_duration=duration)
             dev1 = Dev(uid=dv_id(), name='Dv1', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
             dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
             dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
