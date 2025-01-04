@@ -310,8 +310,8 @@ class Dialysis2021Generator(BenchmarkGenerator):
         machines_data = self._load_machines()
         patients_data = self._load_patients()
         prod_slots, maint_slots = self._load_time_slots()
-        print(machines_data)
-        print(patients_data)
+        # print(machines_data)
+        # print(patients_data)
         # raise RuntimeError
     
         filter_ = self.filter.replace('%', '.*')
@@ -319,15 +319,18 @@ class Dialysis2021Generator(BenchmarkGenerator):
         filter_ += '$'
         x, y = 0, len(threads)
 
-        for period in patients_data.index:
-            patients_row = patients_data.loc[period]
+        for period, patients_group in patients_data.groupby('period'):
+            # period = patients_group.iloc[0].period
+            # periode = machines_data.iloc[0].periode
+            # print(type(period), period)
+            # print(type(periode), periode)
             machines_group = machines_data[machines_data.periode==period]
+            # print('\n\n\t', machines_group)
             name = period.strftime('dial_S%Y_%m_%d')
-            print(name)
             if filter_ is None or re.match(filter_, name):
                 thread = threads[x % y]
                 thread.send(name,
-                            patients_row,
+                            patients_group,
                             machines_group,
                             prod_slots,
                             maint_slots)
@@ -345,14 +348,14 @@ class Dialysis2021Generator(BenchmarkGenerator):
     
     def _load_patients(self):
         datapath = os.path.join(self.datadir, 'parametres_patients.csv')
-        return pd.read_csv(datapath, index_col='Date', parse_dates=True)
+        return pd.read_csv(datapath, parse_dates=[1, 7])
     
     def _load_time_slots(self):
         data1 = pd.read_csv(os.path.join(self.datadir, 'tranches_soins.csv'))
         data2 = pd.read_csv(os.path.join(self.datadir, 'tranches_maintenances.csv'))
         return data1, data2
 
-    def _generate_problem(self, name, patients_row, machines_group, 
+    def _generate_problem(self, name, patients_group, machines_group, 
                           production_slots, maintenance_slots):
         session = self.db.connect()
         uid = sch.Problem.next_uid()
@@ -361,39 +364,32 @@ class Dialysis2021Generator(BenchmarkGenerator):
         session.commit()
         self._generate_machines(session, pb, machines_group)
         self._generate_maintenances(session, pb)
-        self._generate_orders(session, pb, patients_row)
+        self._generate_orders(session, pb, patients_group)
         session.close()
         return uid
 
-    def _generate_orders(self, session, problem, patients_row):
+    def _generate_orders(self, session, problem, patients_group):
         f2 = sch.ManufacturingOrder.next_uid
         f3 = sch.Routing.next_uid
-        f4 = sch.ProductionTask.next_uid
-
-        u0 = int(patients_row.duree_cycle)
-        u1 = int(patients_row.nb_seance_par_patient)
-        u2 = int(patients_row.duree_seance)      
-        u3 = 'Comp1'
-        u4 = 0
-
+        f4 = sch.ProductionTask.next_uid     
         MO = sch.ManufacturingOrder  
         RO = sch.Routing
         OP = sch.ProductionTask
-        
-        n_mo = int(patients_row.nb_patient)
-        for j in range(n_mo):
-            R = u4             # release date
-            D = R + 7*24*u0    # due date
-            name = 'mo{:0>3}'.format(j+1)
-            mo = MO(uid=f2(), name=name, release_date=R, due_date=D)
-            ro = RO(uid=f3(), order=mo)
-            problem.orders.append(mo)
-            rs = u0 * u1
-            for rank in range(rs):
+
+        j = 0
+        for row in patients_group.itertuples():
+            for _ in range(row.patients):
+                j += 1
+                R = row.debut + (24 * (row.day - 1))     # release date
+                D = R + row.duree                        # due date
+                name = 'mo{:0>3}'.format(j)
+                mo = MO(uid=f2(), name=name, release_date=R, due_date=D)
+                ro = RO(uid=f3(), order=mo)
+                problem.orders.append(mo)
                 op = OP(uid=f4(), 
-                        rank=rank, 
-                        duration=u2, 
-                        activity=u3, 
+                        rank=0, 
+                        duration=row.duree, 
+                        activity='Comp1', 
                         routing=ro)
                 session.add(op)
         session.commit()

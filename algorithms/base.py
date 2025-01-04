@@ -94,7 +94,7 @@ class BasicModel(Model):
 
         self.speed = 0
         self.elapsed_time = 0
-        self.logger = get_logger(experiment.name, verbose=verbose)
+        self.logger = get_logger(experiment.name, verbose=True)
         self.schedule = BaseScheduler(self)
         self.datacollector = DataCollector(model_reporters=self.model_reporters(),
                                            agent_reporters=self.agent_reporters())

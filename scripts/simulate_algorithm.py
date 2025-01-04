@@ -61,10 +61,11 @@ def simulate():
     problem_ids = [p.uid for p in query.all()]
     # pprint(problem_ids)
 
-    # clear previous experiments
+    # clear previous experiments with the same algorithm
     Exp = sch.Experiment
     query = session.query(Exp)
     query = query.filter(Exp.problem_id.in_(problem_ids))
+    query = query.filter(Exp.model_name==algo_name)
     for exp in query.all():
         session.delete(exp)
     session.commit()
