@@ -13,7 +13,7 @@ class DialCustomerAgent(CustomerAgent):
     def calc_fp(self, wp, PL, plast=None, forced=None):
         max_end = self.max_due_date
         PLnew = [pr for pr in PL if pr.effective.end <= max_end]
-        self.log_info(f'{self} retains {len(PLnew)} from {len(PL)} with max:{max_end}')
+        self.log.debug(f'{self} retains {len(PLnew)} from {len(PL)} with max:{max_end}')
         return super().calc_fp(wp, PLnew, plast=plast, forced=forced)
 
 

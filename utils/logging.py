@@ -1,5 +1,6 @@
 
 import os
+from datetime import datetime
 from uuid import uuid4
 import queue as que
 import logging as log
@@ -21,9 +22,9 @@ _FORMATTER = log.Formatter(_LOG_FORMAT)
 # _LOG_QUEUES = {}
 
 
-def get_logger(name, verbose=None):
-    level = log.DEBUG if verbose else log.WARNING
-    log_uid = uuid4().hex
+def get_logger(name, level=log.INFO):
+    # log_uid = uuid4().hex
+    log_uid = datetime.now().strftime('%Y%m%d_%H%M%S%f')
     logfile = os.path.join(LOG_DIR, '%s_%s.log' % (name, log_uid))
     filehandler = logh.RotatingFileHandler(logfile, 
                                             maxBytes=_LOG_MAX_BYTES, 

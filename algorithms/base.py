@@ -1,5 +1,6 @@
 
 import time
+from logging import INFO
 from functools import cached_property, total_ordering
 from collections import OrderedDict
 from typing import NamedTuple
@@ -30,13 +31,6 @@ class BasicAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)    
         self.satisfied = -1                      # satisfaction
-
-        logger = model.logger
-        self.log_debug = logger.debug
-        self.log_info = logger.info
-        self.log_error = logger.error
-        self.log_warning = logger.warning
-        self.log_critical = logger.critical
         
     def __repr__(self):
         uid = self.unique_id
@@ -63,12 +57,17 @@ class BasicAgent(Agent):
         '''shortcut of experiment'''
         return self.model.experiment
     
+    @cached_property
+    def log(self):
+        return self.model.log
+    
 
 class BasicModel(Model):
 
     ALGORITHM_NAME = ''
 
-    def __init__(self, db_type, benchmark_id, problem_id, verbose=None, seed=None):
+    def __init__(self, db_type, benchmark_id, problem_id, 
+                 verbose=None, seed=None, log_level=INFO):
         super().__init__(seed=seed)
         self.verbose = verbose
         self.db_type = db_type
@@ -94,7 +93,7 @@ class BasicModel(Model):
 
         self.speed = 0
         self.elapsed_time = 0
-        self.logger = get_logger(experiment.name, verbose=True)
+        self.log = get_logger(experiment.name, level=log_level)
         self.schedule = BaseScheduler(self)
         self.datacollector = DataCollector(model_reporters=self.model_reporters(),
                                            agent_reporters=self.agent_reporters())
@@ -128,20 +127,12 @@ class BasicModel(Model):
         # self.session.commit()
     
     
-
 class BasicEnv(OrderedDict):
 
     def __init__(self, model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.plan = Plan(model.session, model.experiment)
-        
-        logger = model.logger
-        self.log_debug = logger.debug
-        self.log_info = logger.info
-        self.log_error = logger.error
-        self.log_warning = logger.warning
-        self.log_critical = logger.critical
 
     def __repr__(self):
         return self.__class__.__qualname__
@@ -149,6 +140,10 @@ class BasicEnv(OrderedDict):
     @cached_property
     def experiment(self):
         return self.model.experiment
+    
+    @cached_property
+    def log(self):
+        return self.model.log
     
 
 class TaskID(NamedTuple):

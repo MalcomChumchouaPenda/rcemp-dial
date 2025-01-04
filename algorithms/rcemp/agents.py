@@ -86,7 +86,7 @@ class CustomerAgent(RessourceUser, BasicAgent):
             Pj = [TF.duration for TF in OF]                   
             Rj, Dj = self.calc_wp(R, D, Pj)
 
-            log_info = self.log_info
+            log_info = self.log.info
             feasible = self.feasible
             send_task = env.send_task
             for TF, pj, rj, dj in zip(OF, Pj, Rj, Dj):
@@ -125,7 +125,7 @@ class CustomerAgent(RessourceUser, BasicAgent):
         plast = None if len(planned) == 0 else planned[-1]
         PL = env.read_proposals(self.unique_id) 
         
-        log_info = self.log_info
+        log_info = self.log.info
         calc_fp = self.calc_fp
         accept_proposal = env.accept_proposal
         
@@ -163,7 +163,7 @@ class CustomerAgent(RessourceUser, BasicAgent):
         env = self.env
         plan = self.plan
         time = self.time
-        log_info = self.log_info
+        log_info = self.log.info
         planned = sorted([tid for tid, p in plan.items() if p.rid!=0])
         validate_proposal = env.validate_proposal
         read_penality = env.read_penality
@@ -206,7 +206,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         self.waiting_tms = []
     
     def schedule(self):
-        log_info = self.log_info
+        log_info = self.log.info
         performable_tfs = self.performable_tfs
         positionned_tfs = self.positionned_tfs
         planned_tfs = self.planned_tfs
@@ -272,7 +272,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
 
     def propose(self):
         time = self.time
-        log_info = self.log_info
+        log_info = self.log.info
         # send production proposals
         send_proposals = self.env.send_proposals
         for tid, proposal in self.positionned_tfs.items():
@@ -286,7 +286,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         planned_tms = self.planned_tms
         
         # check maintenance proposals
-        log_info = self.log_info
+        log_info = self.log.info
         calc_fp = self.calc_fp
         accept = env.accept_proposal
         reject = env.reject_proposals
@@ -329,7 +329,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
 
         # validate all waiting maintenance task 
         prev_fp = None
-        log_info = self.log_info
+        log_info = self.log.info
         reject = env.reject_proposals
         planned_tms = self.planned_tms
         waiting, self.waiting_tms = self.waiting_tms, []
@@ -392,7 +392,7 @@ class MaintenerAgent(RessourceWrapper, BasicAgent):
         positionned_tms = self.positionned_tms
         planned_tms = self.planned_tms
         
-        log_info = self.log_info
+        log_info = self.log.info
         calc_ep = self.calc_ep
         calc_pp = self.calc_pp
         Pcfv = list(planned_tms.values())
@@ -455,7 +455,7 @@ class RegulatorAgent(BasicAgent):
             _ = [m.schedule() for m in mainteners]
             _ = [p.accept() for p in producers]
             _ = [p.schedule() for p in producers]
-            self.log_info(f'maintenance loop number {count_loop}')
+            self.log.debug(f'maintenance loop number {count_loop}')
             count_loop += 1
             if count_loop > 100:
                 raise RuntimeError(f'too much maintenance {count_tm()}')
@@ -525,7 +525,7 @@ class RegulatorAgent(BasicAgent):
         s1 = 1-(nTo/nT) if nT > 0 else 0
         self.stationnary = s1 == s0
         self.satisfied = s1
-        self.log_info(f'at {time}:: {self} satisfied={s1}; stationnary={self.stationnary}')
+        self.log.info(f'at {time}:: {self} satisfied={s1}; stationnary={self.stationnary}')
         # if self.stationnary or s1==1:
         if s1==1:
             self.stop()
@@ -534,11 +534,13 @@ class RegulatorAgent(BasicAgent):
             
     def stop(self):
         self.model.stop()
-        self.log_info(f'at {self.time}:: {self} stopped')
+        self.log.info(f'at {self.time}:: {self} stopped')
     
     def penalize(self):
         env = self.env
-        log_info = self.log_info
+        log = self.log
+        log_info = log.info
+        log_debug = log.debug
 
         # group positions
         wished_pos = {tid:o.wish_pos for tid, o in env.items()}
@@ -568,7 +570,7 @@ class RegulatorAgent(BasicAgent):
                     r_list.extend([x.end for x in cfp if x.end <= fp.start])
                     if tid.rank == 0:
                         r_list.append(wished_pos[tid].start)
-                log_info(f'{self} check order {tid} with pos:{fp} r_list:{list(sorted(r_list))}')
+                log_debug(f'{self} check order {tid} with pos:{fp} r_list:{list(sorted(r_list))}')
                 idle = fp.start - max(r_list)
                 penality = idle
                 prev_fp = fp

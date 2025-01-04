@@ -1,4 +1,4 @@
-
+import logging as log
 from pprint import pprint
 from mesa import batch_run
 from benchmarks import schema as sch
@@ -50,6 +50,15 @@ def simulate():
     except ValueError:
         num_proc = 1
 
+    # read verbose or seed params
+    level = input('> Logging level? (DEBUG|INFO|WARNING|ERROR|CRITICAL):')
+    level = level.upper()    
+    try:
+        level = getattr(log, level)
+    except AttributeError:
+        print('Error! Unknown log level')
+        level = log.INFO
+
     # create db connection
     db = dbcls(benchmark_id, verbose)
     session = db.connect()
@@ -85,7 +94,9 @@ def simulate():
 
     # run experiments
     display = not verbose
-    params = {'db_type':db_type, 'benchmark_id':benchmark_id, 'problem_id':problem_ids, 'verbose':verbose, 'seed':seed}
+    params = {'db_type':db_type, 'benchmark_id':benchmark_id, 
+              'problem_id':problem_ids, 'verbose':verbose, 
+              'seed':seed, 'log_level':level}
     results = batch_run(modelcls, params, number_processes=num_proc, display_progress=display)
 
     # save results
