@@ -309,6 +309,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
 
         machines_data = self._load_machines()
         patients_data = self._load_patients()
+        mainteners_data = self._load_maintenance_ressources()
         prod_slots, maint_slots = self._load_time_slots()
         # print(machines_data)
         # print(patients_data)
@@ -325,6 +326,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
             # print(type(period), period)
             # print(type(periode), periode)
             machines_group = machines_data[machines_data.periode==period]
+            mainteners_group = mainteners_data[mainteners_data.date==period]
             # print('\n\n\t', machines_group)
             name = period.strftime('dial_S%Y_%m_%d')
             if filter_ is None or re.match(filter_, name):
@@ -332,6 +334,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
                 thread.send(name,
                             patients_group,
                             machines_group,
+                            mainteners_group,
                             prod_slots,
                             maint_slots)
                 x += 1
@@ -350,20 +353,25 @@ class Dialysis2021Generator(BenchmarkGenerator):
         datapath = os.path.join(self.datadir, 'parametres_patients.csv')
         return pd.read_csv(datapath, parse_dates=[1, 7])
     
+    def _load_maintenance_ressources(self):
+        datapath = os.path.join(self.datadir, 'parametres_maintenances.csv')
+        return pd.read_csv(datapath, parse_dates=[1])
+    
     def _load_time_slots(self):
         data1 = pd.read_csv(os.path.join(self.datadir, 'tranches_soins.csv'))
         data2 = pd.read_csv(os.path.join(self.datadir, 'tranches_maintenances.csv'))
         return data1, data2
 
     def _generate_problem(self, name, patients_group, machines_group, 
-                          production_slots, maintenance_slots):
+                          mainteners_group, production_slots, 
+                          maintenance_slots):
         session = self.db.connect()
         uid = sch.Problem.next_uid()
         pb = sch.Problem(uid=uid, name=name)
         session.add(pb)
         session.commit()
         self._generate_machines(session, pb, machines_group)
-        self._generate_maintenances(session, pb)
+        self._generate_maintenances(session, pb, mainteners_group)
         self._generate_orders(session, pb, patients_group)
         session.close()
         return uid
@@ -394,21 +402,25 @@ class Dialysis2021Generator(BenchmarkGenerator):
                 session.add(op)
         session.commit()
     
-    def _generate_maintenances(self, session, problem):
+    def _generate_maintenances(self, session, problem, mainteners_group):
         f1 = sch.MaintenanceRessource.next_uid
         f2 = sch.MaintenanceCompetency.next_uid
-
         MR = sch.MaintenanceRessource
-        mr1 = MR(uid=f1(), name='mr1', problem=problem)
-        mr2 = MR(uid=f1(), name='mr2', problem=problem)
-        session.add_all([mr1, mr2])
-        # session.commit()
-
         CM = sch.MaintenanceCompetency
-        cm1 = CM(uid=f2(), ressource=mr1, capability=1, activity='R1')
-        cm2 = CM(uid=f2(), ressource=mr2, capability=1, activity='R2')
-        session.add_all([cm1, cm2])
-        session.commit()
+
+        j = 0
+        for row in mainteners_group.itertuples():
+            for _ in range(int(row.mainteners)):
+                j += 1
+                mr = MR(uid=f1(), name='mr{:0>3}'.format(j), problem=problem)
+                session.add(mr)
+                session.commit()
+
+                capability = row.capability
+                cm1 = CM(uid=f2(), ressource=mr, capability=capability, activity='R1')
+                cm2 = CM(uid=f2(), ressource=mr, capability=capability, activity='R2')
+                session.add_all([cm1, cm2])
+                session.commit()
 
     def _generate_machines(self, session, problem, machines_group):   
         mn_id = sch.Machine.next_uid
@@ -449,7 +461,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
             # session.commit()
 
             duration = row.duree_usage
-            Dev, kwargs = sch.Device, dict(phm_module=phm, risk_threshold=0.5, repair_time=5, initial_duration=duration)
+            Dev, kwargs = sch.Device, dict(phm_module=phm, risk_threshold=0.5, repair_time=1, initial_duration=duration)
             dev1 = Dev(uid=dv_id(), name='Dv1', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
             dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
             dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)

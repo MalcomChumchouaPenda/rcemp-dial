@@ -1,6 +1,6 @@
 
-import numpy as np
 from collections import OrderedDict
+import numpy as np
 from benchmarks import schema as sch
 from ..base import BasicAgent, TaskID, RessourceID
 from .env import Position, Proposal
@@ -526,7 +526,6 @@ class RegulatorAgent(BasicAgent):
         self.stationnary = s1 == s0
         self.satisfied = s1
         self.log.info(f'at {time}:: {self} satisfied={s1}; stationnary={self.stationnary}')
-        # if self.stationnary or s1==1:
         if s1==1:
             self.stop()
         if self.stationnary:
