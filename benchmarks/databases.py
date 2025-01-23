@@ -52,7 +52,7 @@ class MySqlDb(Db):
         engine = create_engine(connstr, echo=verbose, connect_args=connargs)    
         sch.Base.metadata.create_all(engine)
         # self.sessioncls = scoped_session(sessionmaker(bind=engine, autoflush=False))
-        self.sessioncls = sessionmaker(bind=engine, autoflush=False)
+        self.sessionmaker = sessionmaker(bind=engine, autoflush=False)
         self.engine = engine
 
     def _check_database(self, name):
@@ -67,7 +67,7 @@ class MySqlDb(Db):
                 print("Database {} created successfully.".format(name))
                 cnx.database = name
             else:
-                print(err)
+                print("failed checking database: {}".format(err))
                 exit(1)
         finally:
             cnx.close()

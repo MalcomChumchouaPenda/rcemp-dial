@@ -325,10 +325,12 @@ class Dialysis2021Generator(BenchmarkGenerator):
         # print(machines_data)
         # print(patients_data)
         # raise RuntimeError
-    
-        filter_ = self.filter.replace('%', '.*')
-        filter_ = filter_.replace('_', r'\S')
-        filter_ += '$'
+        if self.filter is None:
+            filter_ = '.*'
+        else:
+            filter_ = self.filter.replace('%', '.*')
+            filter_ = filter_.replace('_', r'\S')
+            filter_ += '$'
         x, y = 0, len(threads)
 
         for instance, patients_group in patients_data.groupby('instance'):
