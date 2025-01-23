@@ -1,4 +1,5 @@
 
+from pprint import pprint
 from collections import OrderedDict
 import numpy as np
 from benchmarks import schema as sch
@@ -206,15 +207,12 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         self.waiting_tms = []
     
     def schedule(self):
-        log_info = self.log.info
         performable_tfs = self.performable_tfs
         positionned_tfs = self.positionned_tfs
         planned_tfs = self.planned_tfs
         planned_tms = self.planned_tms
-        waiting_tms = self.waiting_tms
         Cap = self.capabilities
         Fn = self.functions
-        time = self.time
         env = self.env
 
         if len(performable_tfs) == 0 and len(positionned_tfs)==0:
@@ -224,6 +222,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         
         calc_ep = self.calc_ep
         calc_pp = self.calc_pp
+        plan_tf = self.plan_tf
         # duration = 0
 
         Pcfv = list(planned_tfs.values())
@@ -233,42 +232,56 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
             sid = tid.sid
             pp = calc_pp(wp, Cap[sid], Pcfv)
             ep = calc_ep(wp, Cap[sid], Pcfv + Pcfu)
-
-            duration = pp.end - pp.start
-            status, Dev = Fn[sid].check_status(duration)
-            if not status:
-                planned_dev = [dev for wp, dev in planned_tms.values() if wp.end >= ep.start]
-                missing_tms = [dev for dev in Dev if dev not in planned_dev]
-                if len(missing_tms) > 0:
-                    send_task = env.send_task
-                    aid = self.unique_id
-                    Uid = sch.MaintenanceTask.next_uid
-                    TM = sch.MaintenanceTask
-
-                    ri = ep.start
-                    for dev in missing_tms:
-                        di = ri + dev.repair_time
-                        uid = Uid()
-                        rank = self.next_rank
-                        sid = dev.repair_skill
-                        tid = TaskID(aid, rank, sid, uid)
-                        task = TM(uid=uid, rank=rank, need_date=ri, activity=sid)
-                        wp = Position(tid, start=ri, end=di)
-                        send_task(tid, task, wp)
-                        ri = di
-
-                        self.next_rank += 1
-                        planned_tms[tid] = wp, dev
-                        waiting_tms.append(tid)
-                        dev.tasks.append(task)
-                        log_info(f'at {time}:: {self} create task: {wp} for {tid} with dev {Dev} and duration {duration}')
-                    return
-            
+            done = plan_tf(tid, Fn[sid], ep, pp)
+            if not done:
+                break
             Pcfu.append(ep)
-            planned_tfs[tid] = ep
-            performable_tfs.pop(tid)
-            positionned_tfs[tid] = ep, pp
-            log_info(f'at {time}:: {self} plan {ep} for {tid}')    
+
+    
+    def plan_tf(self, tid, Fn, ep, pp):
+        create_tms = self.create_tms
+        duration = pp.end - pp.start
+        status, Dev = Fn.check_status(duration)
+        if not status:
+            planned_dev = [dev for wp, dev in self.planned_tms.values() if wp.end >= ep.start]
+            missing_tms = [dev for dev in Dev if dev not in planned_dev]
+            if len(missing_tms) > 0:
+                done = create_tms(ep, missing_tms)
+                if done:
+                    return False
+        self.planned_tfs[tid] = ep
+        self.performable_tfs.pop(tid)
+        self.positionned_tfs[tid] = ep, pp
+        self.log.info(f'{self} plan {ep} for {tid}') 
+        return True   
+
+    def create_tms(self, ep, missing_tms):
+        aid = self.unique_id
+        Uid = sch.MaintenanceTask.next_uid
+        TM = sch.MaintenanceTask
+        ri = ep.start
+        for dev in missing_tms:
+            di = ri + dev.repair_time
+            uid = Uid()
+            rank = self.next_rank
+            sid = dev.repair_skill
+            tid = TaskID(aid, rank, sid, uid)
+            task = TM(uid=uid, rank=rank, need_date=ri, activity=sid)
+            done = self.create_tm(tid, task, ri, di, dev)
+            if not done:
+                return False
+            dev.tasks.append(task)
+            ri = di
+            self.next_rank += 1
+        return True
+
+    def create_tm(self, tid, task, ri, di, dev):
+        wp = Position(tid, start=ri, end=di)
+        self.env.send_task(tid, task, wp)
+        self.planned_tms[tid] = wp, dev
+        self.waiting_tms.append(tid)
+        self.log.info(f'{self} create task: {wp} for {tid} with dev: {dev}')
+        return True
 
     def propose(self):
         time = self.time
@@ -385,14 +398,12 @@ class MaintenerAgent(RessourceWrapper, BasicAgent):
         self.capabilities = {c.activity:c.capability for c in ressource.competencies}
 
     def schedule(self):
-        time = self.time
         env = self.env
         Cap = self.capabilities
         performable = [wp for wp in self.priorities(env.read_wishes(Cap))]
         positionned_tms = self.positionned_tms
         planned_tms = self.planned_tms
         
-        log_info = self.log.info
         calc_ep = self.calc_ep
         calc_pp = self.calc_pp
         Pcfv = list(planned_tms.values())
@@ -403,10 +414,16 @@ class MaintenerAgent(RessourceWrapper, BasicAgent):
             sid = tid.sid
             pp = calc_pp(wp, Cap[sid], Pcfv)
             ep = calc_ep(wp, Cap[sid], Pcfv + Pcfu)
-            env.send_proposals(tid, Proposal(ep, pp))
-            positionned_tms[tid] = ep            
+            done = self.create_tm(tid, ep, pp)
+            if not done:  
+                return          
             Pcfu.append(ep)
-            log_info(f'at {time}:: {self} place proposal for {tid}: {ep} - {pp}')
+
+    def create_tm(self, tid, ep, pp):
+        self.env.send_proposals(tid, Proposal(ep, pp))
+        self.positionned_tms[tid] = ep
+        self.log.info(f'{self} place proposal for {tid}: {ep} - {pp}')
+        return True
 
     def validate(self):
         rid = self.rid
@@ -487,7 +504,7 @@ class RegulatorAgent(BasicAgent):
                 raise RuntimeError(f'too much penalities {sum_pn()}')
     
         self.validate()
-        self._evaluate_system()
+        self.evaluate_system()
     
     def _calc_forced_time(self):
         customers = self.customers
@@ -516,7 +533,7 @@ class RegulatorAgent(BasicAgent):
                     for o in self.env.values()
                     if o.final_pos is not None])
 
-    def _evaluate_system(self):
+    def evaluate_system(self):
         env = self.env
         time = self.time
         nT = len(env)                                                  # task numbers
@@ -539,7 +556,6 @@ class RegulatorAgent(BasicAgent):
         env = self.env
         log = self.log
         log_info = log.info
-        log_debug = log.debug
 
         # group positions
         wished_pos = {tid:o.wish_pos for tid, o in env.items()}
@@ -550,32 +566,41 @@ class RegulatorAgent(BasicAgent):
 
         # calcul idle time and externalities
         apply_penality = env.apply_penality
+        calc_externality = self.calc_externality
         for problem_id, pfp in ma_order.items():
             prev_fp = None
             penality = 0
-            idle = 0
+            # print('\ncheck', [p.tid for p in pfp])
             for fp in pfp:
-                tid = fp.tid
-                r_list = [0]
-                if prev_fp:
-                    r_list.append(prev_fp.end)         
-                if tid.aid == problem_id:
-                    # case of TM
-                    mfp = mr_order[fp.rid.aid]
-                    r_list.extend([x.end for x in mfp if x.end <= fp.start])
-                else:
-                    # case of TF                        
-                    cfp = mo_order[tid.aid]
-                    r_list.extend([x.end for x in cfp if x.end <= fp.start])
-                    if tid.rank == 0:
-                        r_list.append(wished_pos[tid].start)
-                log_debug(f'{self} check order {tid} with pos:{fp} r_list:{list(sorted(r_list))}')
-                idle = fp.start - max(r_list)
-                penality = idle
+                penality = calc_externality(problem_id, fp, prev_fp, mo_order, mr_order, wished_pos)
+                apply_penality(fp.tid, penality)
                 prev_fp = fp
-                apply_penality(tid, penality)
                 if penality != 0:
-                    log_info(f'{self} apply penality {penality} to {tid} cause of idle {idle}')
+                    log_info(f'{self} apply penality {penality} to {fp.tid}')
+
+    def calc_externality(self, problem_id, fp, prev_fp, mo_order, mr_order, wished_pos):
+        tid = fp.tid  
+        r_list = [0]
+        if prev_fp:
+            r_list.append(prev_fp.end)  
+
+        msg = f'{self} check order {tid} with pos:{fp}' 
+        if tid.aid == problem_id:
+            # case of TM
+            mfp = mr_order[fp.rid.aid]
+            r_list.extend([x.end for x in mfp if x.end <= fp.start])
+            msg += f'\n\tmr_order:{[fp.tid for fp in mfp]}'
+        else:
+            # case of TF                        
+            cfp = mo_order[tid.aid]
+            r_list.extend([x.end for x in cfp if x.end <= fp.start])
+            if tid.rank == 0:
+                r_list.append(wished_pos[tid].start)
+            msg += f'\n\tmo_order:{[fp.tid for fp in cfp]}'
+
+        msg += f'\n\tr_list:{list(sorted(r_list))}'
+        self.log.debug(msg)
+        return fp.start - max(r_list)
 
 
     def sort_cfp(self, accepted_pos):

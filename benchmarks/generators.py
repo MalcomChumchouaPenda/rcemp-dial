@@ -48,8 +48,12 @@ class GeneratorThread(Thread):
             if args == 'stop':
                 self._terminated.set()
                 break
-            problem_id = method(*args)
-            self._problem_ids.append(problem_id)
+            try:
+                problem_id = method(*args)
+                self._problem_ids.append(problem_id)
+            except Exception as e:
+                print(f'\n{e}\n')
+                break
 
     def send(self, *args):
         self._queue.put(args)
@@ -295,9 +299,17 @@ class BencheikhAl2022Generator(BenchmarkGenerator):
 
 class Dialysis2021Generator(BenchmarkGenerator):
 
-    def __init__(self, db, filter_='%'):
+    FILTER_LAMBDA = 2 * 7 * 24   # 2 weeks
+    GENERAL_LAMBDA = 365 * 24    # 1 year
+    FILTER_SIGMA = 12
+    GENERAL_SIGMA = 24
+    RISK_THRESHOLD = 0.5
+    REPAIR_TIME = 1
+
+    def __init__(self, db, filter_='%', maintener_ratio=1):
         super().__init__(db, filter_=filter_)
         self.datadir = os.path.join(DATA_DIR, 'raw', 'HGD_dialysis_2018_2021')
+        self.maintener_ratio = maintener_ratio
         
     def generate(self):
         f = self._generate_problem
@@ -309,7 +321,6 @@ class Dialysis2021Generator(BenchmarkGenerator):
 
         machines_data = self._load_machines()
         patients_data = self._load_patients()
-        mainteners_data = self._load_maintenance_ressources()
         prod_slots, maint_slots = self._load_time_slots()
         # print(machines_data)
         # print(patients_data)
@@ -320,21 +331,13 @@ class Dialysis2021Generator(BenchmarkGenerator):
         filter_ += '$'
         x, y = 0, len(threads)
 
-        for period, patients_group in patients_data.groupby('period'):
-            # period = patients_group.iloc[0].period
-            # periode = machines_data.iloc[0].periode
-            # print(type(period), period)
-            # print(type(periode), periode)
-            machines_group = machines_data[machines_data.periode==period]
-            mainteners_group = mainteners_data[mainteners_data.date==period]
-            # print('\n\n\t', machines_group)
-            name = period.strftime('dial_S%Y_%m_%d')
-            if filter_ is None or re.match(filter_, name):
+        for instance, patients_group in patients_data.groupby('instance'):
+            machines_group = machines_data[machines_data.instance==instance]
+            if filter_ is None or re.match(filter_, instance):
                 thread = threads[x % y]
-                thread.send(name,
+                thread.send(instance,
                             patients_group,
                             machines_group,
-                            mainteners_group,
                             prod_slots,
                             maint_slots)
                 x += 1
@@ -346,32 +349,51 @@ class Dialysis2021Generator(BenchmarkGenerator):
         return uids    
 
     def _load_machines(self):
-        datapath = os.path.join(self.datadir, 'parametres_machines.csv')
+        datapath = os.path.join(self.datadir, 'echantillons_machines.csv')
         return pd.read_csv(datapath, parse_dates=[3])
     
     def _load_patients(self):
-        datapath = os.path.join(self.datadir, 'parametres_patients.csv')
+        datapath = os.path.join(self.datadir, 'echantillons_patients.csv')
         return pd.read_csv(datapath, parse_dates=[1, 7])
-    
-    def _load_maintenance_ressources(self):
-        datapath = os.path.join(self.datadir, 'parametres_maintenances.csv')
-        return pd.read_csv(datapath, parse_dates=[1])
     
     def _load_time_slots(self):
         data1 = pd.read_csv(os.path.join(self.datadir, 'tranches_soins.csv'))
         data2 = pd.read_csv(os.path.join(self.datadir, 'tranches_maintenances.csv'))
         return data1, data2
+    
+    def _calc_pauses(self, data):
+        cols = ['D%s' % i for i in range(1, 8)]
+        available = 0
+        start = end = 0
+        time = 0
+        pauses = []
+        for col in cols:
+            series = data[col]
+            for _, val in series.items():
+                time += 1
+                if val == '--':
+                    if available == 1:
+                        start = time
+                        available = 0
+                else:
+                    if available == 0:
+                        end = time - 1
+                        available = 1
+                        pauses.append((start, end))
+        if available == 0:
+            end = time
+            pauses.append((start, end))
+        return pauses
 
     def _generate_problem(self, name, patients_group, machines_group, 
-                          mainteners_group, production_slots, 
-                          maintenance_slots):
+                          production_slots, maintenance_slots):
         session = self.db.connect()
         uid = sch.Problem.next_uid()
         pb = sch.Problem(uid=uid, name=name)
         session.add(pb)
         session.commit()
-        self._generate_machines(session, pb, machines_group)
-        self._generate_maintenances(session, pb, mainteners_group)
+        self._generate_machines(session, pb, machines_group, production_slots)
+        self._generate_maintenances(session, pb, machines_group, maintenance_slots)
         self._generate_orders(session, pb, patients_group)
         session.close()
         return uid
@@ -383,62 +405,80 @@ class Dialysis2021Generator(BenchmarkGenerator):
         MO = sch.ManufacturingOrder  
         RO = sch.Routing
         OP = sch.ProductionTask
-
         j = 0
         for row in patients_group.itertuples():
-            for _ in range(row.patients):
+            for _ in range(int(row.number)):
                 j += 1
-                R = row.debut + (24 * (row.day - 1))     # release date
-                D = R + row.duree                        # due date
-                name = 'mo{:0>3}'.format(j)
+                R = row.release_date + (24 * (row.day - 1))     # release date
+                D = row.due_date * (24 * (row.day - 1))         # due date
+                name = 'PAT{:0>3}'.format(j)
                 mo = MO(uid=f2(), name=name, release_date=R, due_date=D)
                 ro = RO(uid=f3(), order=mo)
                 problem.orders.append(mo)
                 op = OP(uid=f4(), 
                         rank=0, 
-                        duration=row.duree, 
-                        activity='Comp1', 
+                        duration=row.duration, 
+                        activity='soin', 
                         routing=ro)
                 session.add(op)
         session.commit()
     
-    def _generate_maintenances(self, session, problem, mainteners_group):
+    def _generate_maintenances(self, session, problem, machines_group, maintenance_slots):
         f1 = sch.MaintenanceRessource.next_uid
         f2 = sch.MaintenanceCompetency.next_uid
+        pa_id = sch.Pause.next_uid
+
         MR = sch.MaintenanceRessource
         CM = sch.MaintenanceCompetency
+        PA = sch.Pause
 
-        j = 0
-        for row in mainteners_group.itertuples():
-            for _ in range(int(row.mainteners)):
-                j += 1
-                mr = MR(uid=f1(), name='mr{:0>3}'.format(j), problem=problem)
-                session.add(mr)
-                session.commit()
+        pauses = self._calc_pauses(maintenance_slots)
+        nb_machines = machines_group.shape[0]
+        nb_mainteners = int(nb_machines * self.maintener_ratio)
+        for j in range(nb_mainteners):
+            mr = MR(uid=f1(), name='MAINT{:0>3}'.format(j+1), problem=problem)
+            session.add(mr)
+            session.commit()
 
-                capability = row.capability
-                cm1 = CM(uid=f2(), ressource=mr, capability=capability, activity='R1')
-                cm2 = CM(uid=f2(), ressource=mr, capability=capability, activity='R2')
-                session.add_all([cm1, cm2])
-                session.commit()
+            for i, (start, end) in enumerate(pauses):
+                pause = PA(uid=pa_id(), start_time=start, end_time=end, 
+                           ressource=mr, rank=i, activity='pause')
+                session.add(pause)
+            session.commit()
 
-    def _generate_machines(self, session, problem, machines_group):   
+            cm1 = CM(uid=f2(), ressource=mr, capability=1, activity='R1')
+            cm2 = CM(uid=f2(), ressource=mr, capability=1, activity='R2')
+            session.add_all([cm1, cm2])
+            session.commit()
+            
+    def _generate_machines(self, session, problem, machines_group, production_slots):   
         mn_id = sch.Machine.next_uid
         cm_id = sch.ProductionCompetency.next_uid
         fn_id = sch.Function.next_uid
         dv_id = sch.Device.next_uid
         ph_id = sch.PHMModule.next_uid
+        pa_id = sch.Pause.next_uid
 
+        PA = sch.Pause
         MA = sch.Machine
+        Dev = sch.Device
         CM = sch.ProductionCompetency
         FN, RFN = sch.Function, fct.partial(sch.Function, redundant=True)
+
+        pauses = self._calc_pauses(production_slots)
         for i in range(machines_group.shape[0]):
             row = machines_group.iloc[i]
-            ma = MA(uid=mn_id(), name=row.Code, problem=problem)
+            ma = MA(uid=mn_id(), name=row.code, problem=problem)
             session.add(ma)
             session.commit()
 
-            cm = CM(uid=cm_id(), activity='Comp1', capability=1, ressource=ma)
+            for i, (start, end) in enumerate(pauses):
+                pause = PA(uid=pa_id(), start_time=start, end_time=end, 
+                           ressource=ma, rank=i, activity='pause')
+                session.add(pause)
+            session.commit()
+
+            cm = CM(uid=cm_id(), activity='soin', capability=1, ressource=ma)
             session.add(cm)
             session.commit()
 
@@ -449,34 +489,34 @@ class Dialysis2021Generator(BenchmarkGenerator):
             session.add(f1)
             session.commit()
 
-            lambda_f = int(row.delai_maintenance_filtre)
-            lambda_g = int(row.delai_maintenance_generale)
-            sigma_f = 12
-            sigma_g = 24
-            law_f = lambda:json.dumps({'name':'norm', 'params':{'loc':lambda_f, 'scale':sigma_f}})
-            law_g = lambda:json.dumps({'name':'norm', 'params':{'loc':lambda_g, 'scale':sigma_g}})
+            param_f = {'loc':self.FILTER_LAMBDA, 'scale':self.FILTER_SIGMA}
+            param_g = {'loc':self.GENERAL_LAMBDA, 'scale':self.GENERAL_SIGMA}
+            law_f = lambda:json.dumps({'name':'norm', 'params':param_f})
+            law_g = lambda:json.dumps({'name':'norm', 'params':param_g})
             
             phm = sch.PHMModule(uid=ph_id())
             session.add(phm)
             # session.commit()
 
-            duration = row.duree_usage
-            Dev, kwargs = sch.Device, dict(phm_module=phm, risk_threshold=0.5, repair_time=1, initial_duration=duration)
-            dev1 = Dev(uid=dv_id(), name='Dv1', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev4 = Dev(uid=dv_id(), name='Dv4', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev5 = Dev(uid=dv_id(), name='Dv5', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev6 = Dev(uid=dv_id(), name='Dv6', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev7 = Dev(uid=dv_id(), name='Dv7', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev8 = Dev(uid=dv_id(), name='Dv8', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev9 = Dev(uid=dv_id(), name='Dv9', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev10 = Dev(uid=dv_id(), name='Dv10', repair_skill='R2', machine=ma, json_law=law_f(), **kwargs)
-            dev11 = Dev(uid=dv_id(), name='Dv11', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev12 = Dev(uid=dv_id(), name='Dv12', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev13 = Dev(uid=dv_id(), name='Dv13', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev14 = Dev(uid=dv_id(), name='Dv14', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
-            dev15 = Dev(uid=dv_id(), name='Dv15', repair_skill='R1', machine=ma, json_law=law_g(), **kwargs)
+            kwargs = dict(phm_module=phm, machine=ma,
+                          repair_time=self.REPAIR_TIME,
+                          risk_threshold=self.RISK_THRESHOLD, 
+                          initial_duration=row.use_duration)
+            dev1 = Dev(uid=dv_id(), name='Dv1', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev4 = Dev(uid=dv_id(), name='Dv4', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev5 = Dev(uid=dv_id(), name='Dv5', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev6 = Dev(uid=dv_id(), name='Dv6', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev7 = Dev(uid=dv_id(), name='Dv7', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev8 = Dev(uid=dv_id(), name='Dv8', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev9 = Dev(uid=dv_id(), name='Dv9', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev10 = Dev(uid=dv_id(), name='Dv10', repair_skill='R2', json_law=law_f(), **kwargs)
+            dev11 = Dev(uid=dv_id(), name='Dv11', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev12 = Dev(uid=dv_id(), name='Dv12', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev13 = Dev(uid=dv_id(), name='Dv13', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev14 = Dev(uid=dv_id(), name='Dv14', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev15 = Dev(uid=dv_id(), name='Dv15', repair_skill='R1', json_law=law_g(), **kwargs)
             f11.devices.extend([dev1, dev2, dev3, dev4, dev5, dev6])
             f12.devices.extend([dev6, dev7, dev8, dev9, dev10, dev11, dev12, dev13, dev14, dev15])
             session.add_all([dev1, dev2, dev3, dev4, dev5, dev6, dev7, dev8, dev9, dev10,

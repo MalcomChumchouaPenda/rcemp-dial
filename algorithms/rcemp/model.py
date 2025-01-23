@@ -11,6 +11,7 @@ class RCEMPModel(BasicModel):
 
     ALGORITHM_NAME = 'RCEMP'
     REGULATOR_CLASS = RegulatorAgent
+    ENV_CLASS = Env
 
     def __init__(self, db_type, benchmark_id, problem_id, 
                  verbose=None, seed=None, log_level=INFO):
@@ -18,7 +19,7 @@ class RCEMPModel(BasicModel):
                          verbose=verbose, seed=seed, 
                          log_level=log_level)
         
-        self.env = Env(self)        
+        self.env = self.ENV_CLASS(self)        
         problem = self.experiment.problem
         regulator = self.REGULATOR_CLASS('r0', self, problem)
         self.schedule.add(regulator)

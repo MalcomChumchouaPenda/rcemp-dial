@@ -22,7 +22,7 @@ class Env(BasicEnv):
         self.plan.place_task(o, task)
         self[o.tid] = o
         return o.tid
-    
+
     def read_wishes(self, capabilities):
         return [o.wish_pos.clone() 
                     for o in self.values() 

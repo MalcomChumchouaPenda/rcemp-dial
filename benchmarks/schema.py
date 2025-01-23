@@ -58,6 +58,7 @@ class Ressource(Identifiable, Base):
     name = Column(String(100), nullable=False)
     planning = relationship('Position', cascade=CASCADE, backref='ressource')
     competencies = relationship('Competency', cascade=CASCADE, backref='ressource', lazy=False)
+    pauses= relationship('Pause', cascade=CASCADE, backref='ressource', lazy=False)
     type = Column(String(200))
 
     __mapper_args__ = {
@@ -364,6 +365,9 @@ class Pause(Task):
     __tablename__ = 'pauses'
     __mapper_args__ = {"polymorphic_identity": "pauses"}
     uid = Column(String(100), ForeignKey('tasks.uid'), primary_key=True)
+    start_time = Column(Float, nullable=False)
+    end_time = Column(Float, nullable=False)
+    ressource_id = Column(String(100), ForeignKey('ressources.uid'))
 
 
 # PROBLEM CLASSES
