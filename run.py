@@ -3,7 +3,7 @@ from scripts.generate_benchmarks import generate
 from scripts.simulate_algorithm import simulate
 from scripts.export_database import export
 from scripts.import_database import import_
-
+from utils.logging import clear_logs
 
 def main():
     print('\nWelcome in RCEMP Scrips')
@@ -15,7 +15,8 @@ def main():
         print('\t2. simulate algorithm')
         print('\t3. export benchmark data')
         print('\t4. import benchmark data')
-        print('\t5. exit this program (Ctrl+C)')
+        print('\t5. clear log data')
+        print('\t6. exit this program (Ctrl+C)')
         choice = int(input('Type your choice: '))
         if choice == 1:
             generate()
@@ -25,6 +26,8 @@ def main():
             export()
         elif choice == 4:
             import_()
+        elif choice == 5:
+            clear_logs()
         else:
             running = False
 

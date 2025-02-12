@@ -4,8 +4,8 @@ Period,D1,D2,D3,D4,D5,D6,D7
 2H-3H,--,--,--,--,--,--,--
 3H-4H,--,--,--,--,--,--,--
 4H-5H,--,--,--,--,--,--,--
-5H-6H,--,--,--,--,--,--,--
-6H-7H,--,--,--,--,--,--,--
+5H-6H,service,service,service,service,service,service,--
+6H-7H,service,service,service,service,service,service,--
 7H-8H,service,service,service,service,service,service,--
 8H-9H,service,service,service,service,service,service,--
 9H-10H,service,service,service,service,service,service,--
@@ -16,9 +16,9 @@ Period,D1,D2,D3,D4,D5,D6,D7
 14H-15H,service,service,service,service,service,service,--
 15H-16H,service,service,service,service,service,service,--
 16H-17H,service,service,service,service,service,service,--
-17H-18H,--,--,--,--,--,--,--
-18H-19H,--,--,--,--,--,--,--
-19H-20H,--,--,--,--,--,--,--
+17H-18H,service,service,service,service,service,service,--
+18H-19H,service,service,service,service,service,service,--
+19H-20H,service,service,service,service,service,service,--
 20H-21H,--,--,--,--,--,--,--
 21H-22H,--,--,--,--,--,--,--
 22H-23H,--,--,--,--,--,--,--

@@ -81,8 +81,12 @@ class DialProducerAgent(TimeWatcher, ProducerAgent):
         return super().plan_tf(tid, Fn, ep, pp)
     
     def create_tm(self, tid, task, ri, di, dev):
+        if task.rank == 0:
+            pi = di - ri
+            ri = 0
+            di = pi
         if ri + di > self.HORIZON:
-            return False
+            return None
         return super().create_tm(tid, task, ri, di, dev)
     
 
@@ -181,52 +185,15 @@ class DialRegulatorAgent(RegulatorAgent):
                 new_order.append(fp)
             mfp_order[aid] = new_order
         return mfp_order
-    
-    # def sort_mfp(self, accepted_pos):
-    #     mfp_order = {}
-    #     for m in self.mainteners:
-    #         aid = m.unique_id
-    #         pos = [fp for fp in accepted_pos 
-    #                     if fp.rid.aid==aid]
-    #         mfp_order[aid] = list(sorted(pos))
-    #     return mfp_order
-    
 
     def calc_externality(self, problem_id, fp, prev_fp, mo_order, mr_order, wished_pos):
         tid = fp.tid  
         if fp.tid.sid == 'pause':
             # case of pause
             self.log.debug(f'{self} ignore {tid} with pos:{fp}')
-            return 0
-        
+            return 0        
         penality = super().calc_externality(problem_id, fp, prev_fp, mo_order, mr_order, wished_pos)
-        # if prev_fp.tid.sid == 'pause':
-        #     # case of task following pause
-        #     mfp = mr_order.get(fp.rid.aid, [])
-        #     cfp = mo_order.get(tid.aid, [])
-        #     ends = [x.end for x in mfp+cfp if x.end <= prev_fp.start]
-        #     self.log.debug(f'{self} check after pause {tid} with pos:{fp} and \n\tr_list:{list(sorted(ends))}')
-        #     if len(ends) > 0:
-        #         end = max(ends)
-        #         if end - prev_fp.start >= fp.end - fp.start:
-        #             penality += end - prev_fp.start
-        #             self.log.debug(f'{self} found after pause externaliy: {penality}')
         return penality
         
-        # r_list = [0]
-        # if prev_fp:
-        #     r_list.append(prev_fp.end)  
-        # if tid.aid == problem_id:
-        #     # case of TM
-        #     mfp = mr_order[fp.rid.aid]
-        #     r_list.extend([x.end for x in mfp if x.end <= fp.start])
-        # else:
-        #     # case of TF                        
-        #     cfp = mo_order[tid.aid]
-        #     r_list.extend([x.end for x in cfp if x.end <= fp.start])
-        #     if tid.rank == 0:
-        #         r_list.append(wished_pos[tid].start)
-        # self.log.debug(f'{self} check order {tid} with pos:{fp} r_list:{list(sorted(r_list))}')
-        # return fp.start - max(r_list)
 
 

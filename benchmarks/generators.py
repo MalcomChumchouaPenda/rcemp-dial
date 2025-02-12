@@ -303,7 +303,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
     GENERAL_LAMBDA = 365 * 24    # 1 year
     FILTER_SIGMA = 12
     GENERAL_SIGMA = 24
-    RISK_THRESHOLD = 0.5
+    RISK_THRESHOLD = 0.1 #0.1 0.5 0.9
     REPAIR_TIME = 1
 
     def __init__(self, db, filter_='%', maintener_ratio=1):
@@ -412,7 +412,7 @@ class Dialysis2021Generator(BenchmarkGenerator):
             for _ in range(int(row.number)):
                 j += 1
                 R = row.release_date + (24 * (row.day - 1))     # release date
-                D = row.due_date * (24 * (row.day - 1))         # due date
+                D = row.due_date + (24 * (row.day - 1))         # due date
                 name = 'PAT{:0>3}'.format(j)
                 mo = MO(uid=f2(), name=name, release_date=R, due_date=D)
                 ro = RO(uid=f3(), order=mo)
@@ -448,9 +448,23 @@ class Dialysis2021Generator(BenchmarkGenerator):
                 session.add(pause)
             session.commit()
 
-            cm1 = CM(uid=f2(), ressource=mr, capability=1, activity='R1')
-            cm2 = CM(uid=f2(), ressource=mr, capability=1, activity='R2')
-            session.add_all([cm1, cm2])
+            cm1 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R1')
+            cm2 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R2')
+            cm3 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R3')
+            cm4 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R4')
+            cm5 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R5')
+            cm6 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R6')
+            cm7 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R7')
+            cm8 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R8')
+            cm9 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R9')
+            cm10 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R10')
+            cm11 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R11')
+            cm12 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R12')
+            cm13 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R13')
+            cm14 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R14')
+            cm15 = CM(uid=f2(), ressource=mr, capability=0.15, activity='R15')
+            session.add_all([cm1, cm2, cm3, cm4, cm5, cm6, cm7, cm8, cm9,
+                             cm10, cm11, cm12, cm13, cm14, cm15])
             session.commit()
             
     def _generate_machines(self, session, problem, machines_group, production_slots):   
@@ -505,20 +519,20 @@ class Dialysis2021Generator(BenchmarkGenerator):
                           risk_threshold=self.RISK_THRESHOLD, 
                           initial_duration=row.use_duration)
             dev1 = Dev(uid=dv_id(), name='Dv1', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev4 = Dev(uid=dv_id(), name='Dv4', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev5 = Dev(uid=dv_id(), name='Dv5', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev6 = Dev(uid=dv_id(), name='Dv6', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev7 = Dev(uid=dv_id(), name='Dv7', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev8 = Dev(uid=dv_id(), name='Dv8', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev9 = Dev(uid=dv_id(), name='Dv9', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev10 = Dev(uid=dv_id(), name='Dv10', repair_skill='R2', json_law=law_f(), **kwargs)
-            dev11 = Dev(uid=dv_id(), name='Dv11', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev12 = Dev(uid=dv_id(), name='Dv12', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev13 = Dev(uid=dv_id(), name='Dv13', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev14 = Dev(uid=dv_id(), name='Dv14', repair_skill='R1', json_law=law_g(), **kwargs)
-            dev15 = Dev(uid=dv_id(), name='Dv15', repair_skill='R1', json_law=law_g(), **kwargs)
+            dev2 = Dev(uid=dv_id(), name='Dv2', repair_skill='R2', json_law=law_g(), **kwargs)
+            dev3 = Dev(uid=dv_id(), name='Dv3', repair_skill='R3', json_law=law_g(), **kwargs)
+            dev4 = Dev(uid=dv_id(), name='Dv4', repair_skill='R4', json_law=law_g(), **kwargs)
+            dev5 = Dev(uid=dv_id(), name='Dv5', repair_skill='R5', json_law=law_g(), **kwargs)
+            dev6 = Dev(uid=dv_id(), name='Dv6', repair_skill='R6', json_law=law_g(), **kwargs)
+            dev7 = Dev(uid=dv_id(), name='Dv7', repair_skill='R7', json_law=law_g(), **kwargs)
+            dev8 = Dev(uid=dv_id(), name='Dv8', repair_skill='R8', json_law=law_g(), **kwargs)
+            dev9 = Dev(uid=dv_id(), name='Dv9', repair_skill='R9', json_law=law_g(), **kwargs)
+            dev10 = Dev(uid=dv_id(), name='Dv10', repair_skill='R10', json_law=law_f(), **kwargs)
+            dev11 = Dev(uid=dv_id(), name='Dv11', repair_skill='R11', json_law=law_g(), **kwargs)
+            dev12 = Dev(uid=dv_id(), name='Dv12', repair_skill='R12', json_law=law_g(), **kwargs)
+            dev13 = Dev(uid=dv_id(), name='Dv13', repair_skill='R13', json_law=law_g(), **kwargs)
+            dev14 = Dev(uid=dv_id(), name='Dv14', repair_skill='R14', json_law=law_g(), **kwargs)
+            dev15 = Dev(uid=dv_id(), name='Dv15', repair_skill='R15', json_law=law_g(), **kwargs)
             f11.devices.extend([dev1, dev2, dev3, dev4, dev5, dev6])
             f12.devices.extend([dev6, dev7, dev8, dev9, dev10, dev11, dev12, dev13, dev14, dev15])
             session.add_all([dev1, dev2, dev3, dev4, dev5, dev6, dev7, dev8, dev9, dev10,

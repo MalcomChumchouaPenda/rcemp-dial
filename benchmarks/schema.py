@@ -305,7 +305,7 @@ class Device(Identifiable, Base):
     
     def check_status(self, duration):
         self.next_duration += duration
-        pdf = self.rul(next=True)                          # probability of failure
+        pdf = self.rul(next=True)                          # probability of failure (probability to have failure before t)
         status = pdf < 1-self.risk_threshold
         return status
 

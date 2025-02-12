@@ -37,6 +37,13 @@ def get_logger(name, level=log.INFO):
     logger.addHandler(filehandler)
     return logger
 
+def clear_logs():
+    for name in os.listdir(LOG_DIR):
+        try:
+            logfile = os.path.join(LOG_DIR, name)
+            os.unlink(logfile)
+        except PermissionError:
+            continue
 
 # def get_logger(name, verbose=None):
 #     level = log.DEBUG if verbose else log.WARNING

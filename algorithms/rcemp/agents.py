@@ -1,4 +1,6 @@
 
+from functools import reduce
+from operator import mul
 from pprint import pprint
 from collections import OrderedDict
 import numpy as np
@@ -267,11 +269,11 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
             sid = dev.repair_skill
             tid = TaskID(aid, rank, sid, uid)
             task = TM(uid=uid, rank=rank, need_date=ri, activity=sid)
-            done = self.create_tm(tid, task, ri, di, dev)
-            if not done:
+            wp = self.create_tm(tid, task, ri, di, dev)
+            if wp is None:
                 return False
             dev.tasks.append(task)
-            ri = di
+            ri = wp.end
             self.next_rank += 1
         return True
 
@@ -281,7 +283,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         self.planned_tms[tid] = wp, dev
         self.waiting_tms.append(tid)
         self.log.info(f'{self} create task: {wp} for {tid} with dev: {dev}')
-        return True
+        return wp
 
     def propose(self):
         time = self.time
@@ -474,8 +476,11 @@ class RegulatorAgent(BasicAgent):
             _ = [p.schedule() for p in producers]
             self.log.debug(f'maintenance loop number {count_loop}')
             count_loop += 1
-            if count_loop > 100:
-                raise RuntimeError(f'too much maintenance {count_tm()}')
+            if count_loop > 100 * len(mainteners):
+                msg = f'too much maintenance {count_loop}'
+                msg += f'\n\twith {count_tm()} maintenance task'
+                msg += f'\n\twith {len(mainteners)} mainteners'
+                raise RuntimeError(msg)
         
         s0 = count_tf()
         forced = False
