@@ -262,6 +262,7 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
         Uid = sch.MaintenanceTask.next_uid
         TM = sch.MaintenanceTask
         ri = ep.start
+        done = False
         for dev in missing_tms:
             di = ri + dev.repair_time
             uid = Uid()
@@ -271,13 +272,18 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
             task = TM(uid=uid, rank=rank, need_date=ri, activity=sid)
             wp = self.create_tm(tid, task, ri, di, dev)
             if wp is None:
-                return False
+                break
+            done = True
             dev.tasks.append(task)
             ri = wp.end
             self.next_rank += 1
-        return True
+        return done
 
     def create_tm(self, tid, task, ri, di, dev):
+        self.log.info(f'{self} creating task {tid} with {len(self.planned_tms)} planned')
+        if tid in self.planned_tms:
+            self.log.warning(f'{self} try to create existing task {tid} with dev: {dev}')
+            return
         wp = Position(tid, start=ri, end=di)
         self.env.send_task(tid, task, wp)
         self.planned_tms[tid] = wp, dev
@@ -384,7 +390,8 @@ class ProducerAgent(RessourceUser, RessourceWrapper, BasicAgent):
                 log_info(f'at {time}:: {self} correct {tid} with {fp}')
 
         # memorize maintenance statistics
-        pdfs = [fn.rul() for fn in Fn.values()]
+        pdfs = [fn.rul(next=False) for fn in Fn.values()]
+        # print(pdfs)
         self.unavailability = sum(pdfs)
         self.positionned_tfs.clear()
 
@@ -457,6 +464,9 @@ class RegulatorAgent(BasicAgent):
         self._forced_time = self._calc_forced_time() 
         # print(f'forced time {self._forced_time}')
         # print('\n\n\t', problem, '\n\t', problem.machines)
+        self.log.debug(f'{self} create customers: {self.customers}')
+        self.log.debug(f'{self} create producers: {self.producers}')
+        self.log.debug(f'{self} create mainteners: {self.mainteners}')
 
     def step(self):      
         # print('step', self.time, 'with forced', self._forced_time)
@@ -642,22 +652,5 @@ class RegulatorAgent(BasicAgent):
             if fp:
                 fp.cost = 0
 
-    @property
-    def late_job_number(self):
-        return len([c for c in self.customers
-                      if c.completion_date > c.due_date])
-    
-    @property
-    def total_tardiness(self):
-        return sum([max(0, c.completion_date - c.due_date) 
-                        for c in self.customers])
-
-    @property
-    def max_completion_time(self):
-        return max([c.completion_date for c in self.customers])
-    
-    @property
-    def unavailability(self):
-        return np.product([p.unavailability for p in self.producers])
 
 

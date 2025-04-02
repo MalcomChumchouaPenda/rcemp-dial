@@ -301,9 +301,9 @@ class Dialysis2021Generator(BenchmarkGenerator):
 
     FILTER_LAMBDA = 2 * 7 * 24   # 2 weeks
     GENERAL_LAMBDA = 365 * 24    # 1 year
-    FILTER_SIGMA = 12
-    GENERAL_SIGMA = 24
-    RISK_THRESHOLD = 0.1 #0.1 0.5 0.9
+    FILTER_SIGMA = 120
+    GENERAL_SIGMA = 240
+    RISK_THRESHOLD = 0.01 #0.1 0.5 0.9
     REPAIR_TIME = 1
 
     def __init__(self, db, filter_='%', maintener_ratio=1):
@@ -488,9 +488,9 @@ class Dialysis2021Generator(BenchmarkGenerator):
             session.add(ma)
             session.commit()
 
-            for i, (start, end) in enumerate(pauses):
+            for j, (start, end) in enumerate(pauses):
                 pause = PA(uid=pa_id(), start_time=start, end_time=end, 
-                           ressource=ma, rank=i, activity='pause')
+                           ressource=ma, rank=j, activity='pause')
                 session.add(pause)
             session.commit()
 

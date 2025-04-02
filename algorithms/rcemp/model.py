@@ -57,5 +57,7 @@ class RCEMPModel(BasicModel):
         
     @property
     def unavailability(self):
-        producers = self.producers
-        return np.product([p.unavailability for p in producers])
+        producers = self.regulator.producers        
+        # print('\nlisting', [p.unavailability for p in producers])
+        # print('product', np.prod([p.unavailability for p in producers]))
+        return np.prod([p.unavailability for p in producers])

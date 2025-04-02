@@ -193,19 +193,19 @@ class Function(Identifiable, Base):
     def __repr__(self):
         return self.name
 
-    def rul(self):
+    def rul(self, next=True):
         if self.redundant:
             pdf = 0
             for device in self.devices:
-                pdf += device.rul()
+                pdf += device.rul(next=next)
             for child in self.children:
-                pdf += child.rul()
+                pdf += child.rul(next=next)
         else:
             pdf = 1
             for device in self.devices:
-                pdf *= device.rul()
+                pdf *= device.rul(next=next)
             for child in self.children:
-                pdf *= child.rul()
+                pdf *= child.rul(next=next)
         return pdf
     
     def count_task(self):
@@ -324,8 +324,13 @@ class PHMModule(Identifiable, Base):
         law = device.law
         law_stats = getattr(stats, law['name'])
         duration = device.next_duration if next else device.use_duration
-        rul = law_stats.cdf(duration, **law['params'])
-        # print(device, rul, device.use_duration, law['params'])
+        rul1 = law_stats.cdf(duration, **law['params']) # less precise
+        rul2 = 1 - law_stats.sf(duration, **law['params']) # more precise
+        # print(duration, rul2, law['params'], device.machine)
+        rul = max([rul1, rul2])
+        # rul = max(rul2, 0.1)
+        # print('\t', duration, rul2, rul)
+        # print('\t', duration, rul1, rul2, rul)
         return rul
 
     
