@@ -1,9 +1,5 @@
 
-from functools import reduce
-from operator import mul
-from pprint import pprint
 from collections import OrderedDict
-import numpy as np
 from benchmarks import schema as sch
 from ..base import BasicAgent, TaskID, RessourceID
 from .env import Position, Proposal
@@ -38,7 +34,7 @@ class RessourceUser:
 
 
 class RessourceWrapper:
-
+    
     def priorities(self, wishes):
         return wishes
     
@@ -409,7 +405,7 @@ class MaintenerAgent(RessourceWrapper, BasicAgent):
     def schedule(self):
         env = self.env
         Cap = self.capabilities
-        performable = [wp for wp in self.priorities(env.read_wishes(Cap))]
+        # performable = [wp for wp in self.priorities(env.read_wishes(Cap))]
         positionned_tms = self.positionned_tms
         planned_tms = self.planned_tms
         
@@ -418,7 +414,8 @@ class MaintenerAgent(RessourceWrapper, BasicAgent):
         Pcfv = list(planned_tms.values())
         Pcfv.extend([ep for ep in positionned_tms.values()])
         Pcfu = []
-        for wp in sorted(performable):
+        # for wp in sorted(performable):
+        for wp in self.priorities(env.read_wishes(Cap)):
             tid = wp.tid
             sid = tid.sid
             pp = calc_pp(wp, Cap[sid], Pcfv)
