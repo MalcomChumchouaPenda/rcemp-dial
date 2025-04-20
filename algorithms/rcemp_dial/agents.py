@@ -245,6 +245,9 @@ class DialRegulatorAgent(RegulatorAgent):
         elif rule == 'EDD':
             for maintener in self.mainteners:
                 EDDPriority(maintener)
+        elif rule == 'RANDOM':
+            for maintener in self.mainteners:
+                RandomPriority(maintener)
         # ids = [p.unique_id for p in self.producers]
         # print('unicity', [(ids.count(i),i) for i in ids], len(ids))
 
